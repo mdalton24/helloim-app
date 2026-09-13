@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "helloim.ai",
+  "version": "0.2.26-dev",
+  "identifier": "ai.nameos.desktop",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "helloim.ai",
+        "width": 1180,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 640,
+        "resizable": true,
+        "minimizable": true,
+        "theme": "Dark",
+        "decorations": false,
+        "transparent": false
+      },
+      {
+        "label": "companion",
+        "url": "index.html?surface=companion",
+        "title": "helloim.ai",
+        "width": 380,
+        "height": 430,
+        "minWidth": 340,
+        "minHeight": 380,
+        "maxWidth": 460,
+        "maxHeight": 560,
+        "resizable": true,
+        "theme": "Dark",
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' blob: data:; connect-src 'self' https://nameos.ai https://www.nameos.ai"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgwNUUyNkY3MUEzQTQ2REYKUldUZlJqb2E5eVplZ0Q0UHEra0FvZWhxbXYybG1zVVpQUjNTMTVaanQ4eWY1cjV2M3ByOUNhbzQK",
+      "endpoints": [
+        "https://nameos.ai/api/update/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "windows": {
+        "installMode": "quiet"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "appimage"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "publisher": "vDesktop, LLC",
+    "copyright": "© 2026 vDesktop, LLC",
+    "category": "DeveloperTool",
+    "shortDescription": "Your assistant. You name it.",
+    "longDescription": "helloim.ai runs an AI assistant and its team of specialists on your own machine, and shows you every step as it happens — what it read, what it ran, what it was refused. Nothing is hidden behind a spinner. It keeps the thread between turns, so nothing is dropped or repeated. You name your own assistant, and you use your own AI account — that usage is billed to you, not to us."
+  }
+}
