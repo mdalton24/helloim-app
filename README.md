@@ -1,10 +1,10 @@
-# helloim.ai — a voice assistant that runs on your machine, with no server of ours in the middle
+# helloim.ai — a voice assistant for Windows that runs on your machine
 
 helloim.ai is a personal AI voice assistant for Windows. It talks,
 it listens, and it uses **your** AI key — your chat goes straight to the AI provider you choose, and no server of ours ever sees it.
 
-- **No server of ours in the middle.** Bring your own brain (Claude, OpenAI, Gemini, or a local model), and your chat and key go straight to it, never through us. Pick a local model and the model call stays on your machine.
-- **Good to know.** Sign-in uses an account (login only — it never sees your chat). Voice input currently uses a cloud speech service; playback is on-device.
+- **Your chat and key go straight to your AI, not through us.** Bring your own brain (Claude, OpenAI, Gemini, or a local model); your chat and key go straight to it. Pick a local model and the model call stays on your machine. (The optional Google connector routes Gmail/Calendar tokens through us — the one exception.)
+- **Good to know.** Sign-in uses a helloim.ai account (handles login and your plan, never your chat). Voice input currently uses a cloud speech service; playback is on-device.
 - **Free to use.** The assistant, its faces and its voices are free.
 - **Source-available, so "private" is something you can verify** — not just
   trust. The code is here to read.
