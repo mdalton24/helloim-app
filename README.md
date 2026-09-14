@@ -8,7 +8,7 @@ it listens, and it uses **your** AI key — your chat goes straight to the AI pr
 - **Free to use.** The assistant, its faces and its voices are free.
 - **Source-available, so "private" is something you can verify** — not just
   trust. The code is here to read.
-- **Windows** today.
+- **Windows** and a separate **Linux (amd64)** installer.
 
 ## License — free to use, not for resale
 
@@ -17,7 +17,16 @@ license **with the Commons Clause**. In plain terms: you may use, run, read,
 and modify it freely — you may **not sell it or resell it** as a product or
 service. See [LICENSE](LICENSE) for the exact terms.
 
+## Repository layout
+
+- [Windows](Windows/): Windows installer and the existing published source in [windows-source](Windows/windows-source/).
+- [linux](linux/): Linux installer built on September 14, 2026, with installation instructions.
+
 ## Download
+
+- [Windows installer](Windows/helloim.ai-Setup.exe) — v1.0.0. Open the file and choose **Download raw file**, or use the release link below.
+- [Linux installer](linux/helloim.ai_1.0.0_amd64.deb) — v1.0.0, amd64. Open the file and choose **Download raw file**; see [Linux instructions](linux/README.md).
+
 
 **v1.0.0 is out.** Get the Windows installer from the [latest release](https://github.com/mdalton24/helloim-app/releases/latest). It's an unsigned build, so Windows shows a SmartScreen warning on first run — the release notes explain exactly what to click and include a SHA-256 checksum to verify the download.
 
