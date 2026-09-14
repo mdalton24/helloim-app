@@ -1,0 +1,4 @@
+NameOS
+Your AI team. You name it.
+
+This installs NameOS on your PC.

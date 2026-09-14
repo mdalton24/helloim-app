@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy &amp; terms — helloim.ai</title>
+<meta name="description" content="What helloim.ai collects, what it does not, and what it is not responsible for. In plain words.">
+
+<!-- FAVICON -- same technique and same real routes as index.html; see that
+     file's head for the full reasoning. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><radialGradient id='bg' cx='50%25' cy='46%25' r='60%25'><stop offset='0' stop-color='%230a1a24'/><stop offset='1' stop-color='%23040b12'/></radialGradient><radialGradient id='core' cx='50%25' cy='50%25' r='50%25'><stop offset='0' stop-color='%236bfdff'/><stop offset='.45' stop-color='%2352ffa5'/><stop offset='1' stop-color='%2352ffa5' stop-opacity='0'/></radialGradient></defs><rect width='64' height='64' fill='url(%23bg)'/><g fill='none' stroke='%2352ffa5' stroke-linecap='round'><circle cx='32' cy='32' r='25.6' stroke-opacity='.16' stroke-width='1.28'/><circle cx='32' cy='32' r='17.92' stroke-opacity='.32' stroke-width='1.408'/><circle cx='32' cy='32' r='10.752' stroke-opacity='.6' stroke-width='1.664'/></g><circle cx='32' cy='32' r='9.92' fill='url(%23core)'/><circle cx='32' cy='32' r='2.83' fill='%23eafff6'/></svg>">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0b0d10">
+
+<!-- OPEN GRAPH / TWITTER CARD -- title and description copied verbatim from
+     this page's own <title> and description above. Image is the same shot
+     index.html uses (this page has no screenshot of its own), served by the
+     Worker at a real route because a share-card crawler cannot fetch a
+     data: URI. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HelloAI">
+<meta property="og:title" content="Privacy & terms — helloim.ai">
+<meta property="og:description" content="What helloim.ai collects, what it does not, and what it is not responsible for. In plain words.">
+<meta property="og:url" content="https://helloim.ai/privacy">
+<meta property="og:image" content="https://helloim.ai/assets/brand/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Privacy & terms — helloim.ai">
+<meta name="twitter:description" content="What helloim.ai collects, what it does not, and what it is not responsible for. In plain words.">
+<meta name="twitter:image" content="https://helloim.ai/assets/brand/og-image.jpg">
+<meta name="robots" content="index, follow">
+
+<!-- WRITTEN FROM THE CODE, NOT FROM A TEMPLATE. Mark, 2026-08-27: "make sure we
+     put a privacy that this is only a interface and takes not responsibility
+     for what ai interfaces or passwords on their computer does.. best effort
+     and anything else you can name."
+     EVERY FACTUAL CLAIM BELOW WAS CHECKED IN THE SOURCE BEFORE IT WAS WRITTEN:
+     the waitlist fields come from handleWaitlist in worker.js, the account
+     fields from handleSignup, the password scheme from the PBKDF2 constants,
+     and "no analytics, no cookies" from grepping this site for a tracker and
+     finding none. A privacy policy that describes a product we did not build is
+     worse than none, because it is the one document people are entitled to
+     trust.
+     THIS IS NOT LEGAL ADVICE AND WAS NOT WRITTEN BY A LAWYER. It is an honest
+     plain-language description of what the software does. Mark has been told
+     that in as many words. -->
+
+<style>
+  :root{--bg:#0b0d10;--panel:#12161b;--line:#1e252d;--text:#dfe5ec;--dim:#7d8894;
+        --accent:#52ffa5;--accent-hi:#6bfdff;--on-accent:#06231a;
+        /* 100%, not 100vw — 100vw counts the scrollbar and shifts a centred
+           block left on any page that scrolls. Same fix as the other pages. */
+        --shell:min(760px,calc(100% - 48px))}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:17px/1.65 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent)}
+  .shell{width:var(--shell);margin:0 auto}
+  header{border-bottom:1px solid var(--line);position:sticky;top:0;
+    background:rgba(11,13,16,.86);backdrop-filter:blur(14px)}
+  .bar{display:flex;align-items:center;height:62px}
+  /* ---- brand: the "hai" wordmark, per desktop/HAI-BRAND-SPEC.md ----------
+     Same .haiMark component as index.html. This page has no --space or --text
+     scale of its own (a deliberately lighter, self-contained stylesheet), so
+     sizes are the literal px this component resolves to elsewhere at 13px. */
+  .brand{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--text)}
+  .brandIco{flex:none;display:block}
+  .haiMark{
+    font-weight:600;letter-spacing:-.02em;line-height:1;font-size:13px;
+    display:inline-flex;align-items:baseline;position:relative;
+  }
+  .haiMark .i{position:relative}
+  .haiMark .i::after{
+    content:"";position:absolute;left:50%;transform:translateX(-50%);
+    width:.185em;height:.185em;bottom:.64em;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 .28em -.02em var(--accent);
+  }
+  @media(prefers-reduced-motion:reduce){ .haiMark .i::after{box-shadow:none} }
+  .bar a.back{margin-left:auto;font-size:14px;color:var(--dim);text-decoration:none}
+  .bar a.back:hover{color:var(--text)}
+  main{padding:64px 0 90px}
+  h1{font-size:clamp(32px,5vw,48px);line-height:1.08;letter-spacing:-.02em;margin:0}
+  h2{font-size:22px;letter-spacing:-.01em;margin:52px 0 12px}
+  h3{font-size:17px;margin:28px 0 8px}
+  p,li{color:var(--dim)}
+  p{margin:14px 0}
+  strong{color:var(--text);font-weight:600}
+  ul{padding-left:20px}
+  li{margin:7px 0}
+  .lede{font-size:19px;color:var(--dim);margin-top:18px}
+  .stamp{font:12px/1 ui-monospace,monospace;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+  .box{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:20px;margin:22px 0}
+  .box p:first-child{margin-top:0}.box p:last-child{margin-bottom:0}
+  footer{border-top:1px solid var(--line);padding:40px 0;color:var(--dim);font-size:14px}
+</style>
+</head>
+<body>
+
+<header><div class="shell bar">
+  <a class="brand" href="/" aria-label="HelloAI">
+    <svg class="brandIco" width="20" height="20" viewBox="0 0 44 44" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="haiCore" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stop-color="#6bfdff"/>
+          <stop offset=".45" stop-color="#52ffa5"/>
+          <stop offset="1" stop-color="#52ffa5" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <g fill="none" stroke="#52ffa5" stroke-linecap="round">
+        <circle cx="22" cy="22" r="17.6" stroke-opacity=".16" stroke-width=".9"/>
+        <circle cx="22" cy="22" r="12.3" stroke-opacity=".32" stroke-width="1"/>
+        <circle cx="22" cy="22" r="7.4" stroke-opacity=".6" stroke-width="1.15"/>
+      </g>
+      <circle cx="22" cy="22" r="6.8" fill="url(#haiCore)"/>
+      <circle cx="22" cy="22" r="2" fill="#eafff6"/>
+    </svg>
+    <span class="haiMark" aria-hidden="true"><span>ha</span><span class="i">ı</span></span>
+  </a>
+  <a class="back" href="/">&larr; Back to helloim.ai</a>
+</div></header>
+
+<main class="shell">
+  <p class="stamp">Last updated 4 September 2026</p>
+  <h1>Privacy &amp; terms</h1>
+  <p class="lede">
+    In plain words, because a policy nobody can read protects nobody. This
+    describes what the software actually does — it was written from the code,
+    not from a template.
+  </p>
+  <p>
+    helloim.ai is made and operated by <strong>vDesktop, LLC</strong>. Throughout this
+    page, "we" and "us" mean vDesktop, LLC.
+  </p>
+
+  <div class="box">
+    <p><strong>helloim.ai is in beta and it is free.</strong> It is early software.
+    Things will break, and some of them will break in ways we did not think of.
+    If that is not a trade you want to make, this is the moment to say no.</p>
+  </div>
+
+  <h2>What helloim.ai actually is</h2>
+  <p>
+    <strong>It is an interface.</strong> helloim.ai does not contain an AI model. It
+    is a window on your computer that runs on the AI brain <em>you</em> connect —
+    your own Claude, OpenAI or Gemini account, or a local model already on your
+    machine — and shows you what it is doing.
+  </p>
+  <p>
+    That matters for everything below. When the assistant writes a file, sends a
+    message or answers a question, the thinking was done by a model we do not make,
+    on an account that is yours — or, with a local model, on your own machine with
+    nothing leaving it — and the action happened with the permission you gave it.
+  </p>
+
+  <h2>What we collect</h2>
+  <h3>If you join the waitlist</h3>
+  <ul>
+    <li>Your email address, and your name if you typed one.</li>
+    <li>The time you signed up, the country our host reports, the page you came
+        from, and your browser's user-agent string.</li>
+    <li>Your IP address, recorded with that signup.</li>
+  </ul>
+  <h3>If you create an account</h3>
+  <ul>
+    <li>Email, display name, country and date of birth.</li>
+    <li>Whether you accepted the terms, and whether you asked for product email.</li>
+    <li>A password that is <strong>never stored</strong>. We keep a PBKDF2-HMAC-SHA-512
+        derivation of it — 100,000 iterations, a random per-user salt — which cannot
+        be turned back into your password.</li>
+  </ul>
+  <h3>This website</h3>
+  <p>
+    <strong>No analytics, no tracking, no cookies.</strong> There is no
+    third-party script on this site at all. Nothing follows you here and nothing
+    follows you away.
+  </p>
+
+  <h2>What we do not collect</h2>
+  <ul>
+    <li><strong>Your files.</strong> They never leave your machine. helloim.ai opens
+        the folder you point it at, on your disk.</li>
+    <li><strong>What you ask it.</strong> Your prompts go from your computer to the
+        AI brain you connected — Anthropic, OpenAI or Google — under your own account,
+        or to nowhere but this machine when that brain is a local model. They do not
+        come to us and we could not read them if we wanted to.</li>
+    <li><strong>Your keys and passwords.</strong> Anything you paste into a
+        connector is stored by Windows in its own Credential Manager, on your
+        machine. It is never written into a file we create and never sent to us.</li>
+    <li><strong>What it remembers.</strong> Its memory is plain text in your own
+        folder. Open it, edit it, delete it. It is not uploaded anywhere.</li>
+  </ul>
+  <p>
+    The one thing the app sends us is a sign-in check, so we know your account is
+    real. That is the whole of it.
+  </p>
+
+  <h2>Where your data actually goes</h2>
+  <p>
+    Because helloim.ai is an interface, other people's terms apply to the parts they
+    handle, and you should read them:
+  </p>
+  <ul>
+    <li><strong>The AI brain you connect</strong> — Anthropic, OpenAI or Google —
+        receives your prompts and does the thinking, under your own account and their
+        policies. Choose a local model instead and the thinking happens on your own
+        machine, with none of this leaving it.</li>
+    <li><strong>Any service you connect</strong> — your Slack, your Notion, your
+        GitHub — receives whatever the assistant asks it for, under your own
+        login and their policies. We are not in the middle of that and we do not
+        hold your logins.</li>
+  </ul>
+
+  <h2>What we are not responsible for</h2>
+  <div class="box">
+    <p>
+      <strong>We do not control what the AI does.</strong> The model can be
+      wrong, can misunderstand you, and can take an action you did not intend.
+      It can delete something, send something, or write something incorrect. You
+      are responsible for what you let it do, and for checking work before you
+      rely on it.
+    </p>
+  </div>
+  <ul>
+    <li><strong>What you let it do is yours.</strong> Safe agency stays off until you
+        switch it on, and even then it asks before every action and waits for you to
+        approve that exact step — nothing runs on its own. When you approve a step,
+        the consequences of that step are yours.</li>
+    <li><strong>Credentials on your computer are yours to guard.</strong> We
+        cannot protect a password, key or token stored on a machine somebody
+        else can reach, and we are not responsible for what happens if they do.</li>
+    <li><strong>Other people's services are theirs.</strong> If a connected
+        service is down, changes, deletes your data or charges you, that is
+        between you and them.</li>
+    <li><strong>Your AI bill is yours.</strong> The thinking runs on your own account
+        with whichever brain you connect — Anthropic, OpenAI or Google — and that bill
+        is between you and them. We do not meter it, cap it or pay it. With a local
+        model there is no such bill at all.</li>
+    <li><strong>We do not back anything up.</strong> There is no copy of your
+        work on our servers, which is the point — and it also means there is
+        nothing for us to restore. Keep your own backups.</li>
+  </ul>
+
+  <h2>Best effort, said plainly</h2>
+  <p>
+    We build this carefully and we test it. We do not promise it is free of
+    faults, that it will always be available, or that it will suit any
+    particular purpose. It is provided as it is, without warranty, and to the
+    fullest extent the law allows we are not liable for loss arising from using
+    it — including lost work, lost data, lost time or lost money.
+  </p>
+  <p>
+    Where a law where you live gives you rights that cannot be signed away, this
+    does not try to take them.
+  </p>
+
+  <h2>Your data, and getting rid of it</h2>
+  <ul>
+    <li><strong>Leave the waitlist or delete your account:</strong> write to
+        <a href="mailto:hello@markdalton.com">hello@markdalton.com</a> and we will remove
+        what we hold.</li>
+    <li><strong>Everything on your own machine</strong> — the memory, the
+        folder, the credentials — is removed by uninstalling and deleting the
+        folder. Nothing of yours needs our permission to disappear.</li>
+    <li>We do not sell your data, and we do not share it with anyone for
+        advertising. There is no advertising.</li>
+  </ul>
+
+  <h2>Changes</h2>
+  <p>
+    If this changes materially we will say so on this page and date it. The date
+    at the top is the last time it changed.
+  </p>
+
+  <div class="box">
+    <p>
+      <strong>This is not legal advice and was not written by a lawyer.</strong>
+      It is an honest description of what the software does, written from the
+      code itself. If your organisation needs a formal agreement with
+      vDesktop, LLC, ask and we will have one drawn up properly.
+    </p>
+  </div>
+
+  <h2>Contact</h2>
+  <p>Questions about any of this: <a href="mailto:hello@markdalton.com">hello@markdalton.com</a></p>
+  <p>vDesktop, LLC &middot; helloim.ai</p>
+</main>
+
+<footer><div class="shell">
+  &copy; 2026 vDesktop, LLC &middot; <a href="/">helloim.ai</a>
+</div></footer>
+</body>
+</html>

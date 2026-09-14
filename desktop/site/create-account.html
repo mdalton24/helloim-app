@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create your account — helloim.ai</title>
+<meta name="description" content="Name your helloim.ai account and start building the crew you named.">
+<!-- Not open for signups yet. Left in place as a safety net if this file is
+     ever reachable before Mark says otherwise. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0d10'/%3E%3Crect x='7' y='15' width='13' height='3' rx='1.5' fill='%236ea8fe'/%3E%3Crect x='23' y='11' width='3' height='11' rx='1.5' fill='%236fd08c'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --panel:#12161b;
+    --text:#dfe5ec;
+    --text-dim:#aab4c0;
+    --text-faint:#7a8592;
+    --accent:#6ea8fe;
+    --accent-ink:#0b0d10;
+    --good:#6fd08c;
+    --bad:#ff9d9d;
+    --border:#1e252d;
+    --radius:14px;
+    --radius-sm:10px;
+    --sans: system-ui, ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --maxw:1120px;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; min-height:100vh;
+  }
+
+  a{ color:inherit; }
+  img,svg{ display:block; max-width:100%; }
+
+  .wrap{ max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+
+  h1{ margin:0; font-weight:700; letter-spacing:-0.02em; }
+  p{ margin:0; }
+
+  /* ---------- Nav (same shell as the marketing page) ---------- */
+  header.nav{
+    background:rgba(11,13,16,.86);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .nav-row{
+    display:flex; align-items:center; justify-content:space-between;
+    height:68px; gap:24px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-weight:700; font-size:17px; letter-spacing:-0.01em;
+    text-decoration:none; white-space:nowrap;
+  }
+  .nav-note{ color:var(--text-faint); font-size:13.5px; }
+  @media (max-width:560px){ .nav-note{ display:none; } }
+
+  /* ---------- Buttons (same system as the marketing page) --------- */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:12px 22px; border-radius:var(--radius-sm);
+    font:600 15px/1 var(--sans); white-space:nowrap; text-decoration:none;
+    border:1px solid transparent; cursor:pointer;
+    transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  @media (prefers-reduced-motion: reduce){ .btn{ transition:none; } }
+  .btn-primary{ background:var(--accent); color:var(--accent-ink); }
+  .btn-primary:hover{ transform:translateY(-1px); background:#7fb4ff; }
+  .btn-primary:active{ transform:translateY(0); }
+  .btn-primary:disabled{ opacity:.55; cursor:default; transform:none; }
+  .btn-ghost{ background:transparent; border-color:var(--border); color:var(--text); }
+  .btn-ghost:hover{ border-color:var(--accent); }
+  .btn-block{ width:100%; }
+
+  /* ---------- Intro ---------- */
+  main{ flex:1; }
+  .intro{ padding:64px 0 8px; text-align:center; }
+  .intro h1{
+    font-size:clamp(1.9rem, 4.6vw, 2.6rem); line-height:1.15;
+    margin:0 auto; max-width:18ch;
+  }
+  .intro .sub{
+    margin:16px auto 0; max-width:48ch; color:var(--text-dim);
+    font-size:clamp(.98rem, 1.4vw, 1.05rem);
+  }
+
+  /* ---------- The account card ---------- */
+  .acctWrap{ padding:40px 0 88px; }
+  .acctCard{
+    max-width:460px; margin:0 auto;
+    border:1px solid var(--border); background:var(--panel);
+    border-radius:var(--radius); padding:30px 30px 28px;
+  }
+
+  .acctForm[hidden], .acctDone[hidden]{ display:none; }
+
+  .acctRow{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:520px){ .acctRow{ grid-template-columns:1fr; } }
+
+  .acctField{ margin-bottom:16px; }
+  .acctField label{
+    display:block; font-size:12.5px; color:var(--text-dim); margin-bottom:6px;
+  }
+  .acctField input, .acctField select{
+    width:100%; background:var(--bg); color:var(--text);
+    border:1px solid var(--border); border-radius:8px;
+    padding:11px 12px; font:15px/1 var(--sans);
+  }
+  .acctField input::placeholder{ color:var(--text-faint); }
+  .acctField input:focus, .acctField select:focus{
+    outline:none; border-color:var(--accent);
+  }
+
+  .acctPasswordWrap{ position:relative; }
+  .acctPasswordWrap input{ padding-right:54px; }
+  .acctEye{
+    position:absolute; right:5px; top:50%; transform:translateY(-50%);
+    background:transparent; border:0; color:var(--text-faint);
+    cursor:pointer; padding:6px 8px; font-size:11.5px; border-radius:6px;
+  }
+  .acctEye:hover{ color:var(--text); }
+
+  .acctError{
+    color:var(--bad); font-size:12.5px; margin:-6px 0 14px; min-height:15px;
+  }
+  .acctError:empty{ display:none; min-height:0; }
+
+  .acctCheck{
+    display:flex; align-items:flex-start; gap:9px; margin-bottom:14px;
+    font-size:12.5px; color:var(--text-dim); line-height:1.45;
+  }
+  .acctCheck input[type="checkbox"]{
+    margin-top:2px; flex:none; width:15px; height:15px; accent-color:var(--accent);
+  }
+  .acctCheck a{ color:var(--accent); text-decoration:none; }
+  .acctCheck a:hover{ text-decoration:underline; }
+
+  .acctSwitch{
+    text-align:center; margin-top:20px; font-size:13px; color:var(--text-faint);
+  }
+  .acctSwitch a{ color:var(--accent); font-weight:600; text-decoration:none; }
+  .acctSwitch a:hover{ text-decoration:underline; }
+
+  /* Confirmation state */
+  .acctDone{ text-align:center; }
+  .acctDone .mark{
+    width:44px; height:44px; margin:0 auto 18px;
+    border:1px solid var(--border); border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg);
+  }
+  .acctDone h2{
+    margin:0; font-size:1.3rem; font-weight:700; letter-spacing:-0.01em;
+  }
+  .acctDone p{
+    margin-top:10px; color:var(--text-dim); font-size:.98rem;
+  }
+  .acctDone .btn{ margin-top:22px; }
+
+  /* ---------- Footer (same shell as the marketing page) ---------- */
+  footer{ border-top:1px solid var(--border); padding:32px 0; }
+  .foot-row{
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:16px;
+  }
+  .foot-brand{ display:flex; align-items:center; gap:10px; font-weight:700; }
+  .foot-meta{ color:var(--text-faint); font-size:13px; }
+
+  a:focus-visible, button:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-row">
+    <a class="brand" href="index.html">
+      <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true">
+        <rect x="0" y="9" width="17" height="4" rx="2" fill="#6ea8fe"/>
+        <rect x="21" y="4" width="4" height="12" rx="2" fill="#6fd08c"/>
+      </svg>
+      helloim.ai
+    </a>
+    <span class="nav-note">Already have an account? Sign in from the app.</span>
+  </div>
+</header>
+
+<main>
+  <div class="wrap intro">
+    <h1>Name yours.</h1>
+    <p class="sub">Every crew starts with what you call it. Create your account, and the one you build next is yours to name.</p>
+  </div>
+
+  <div class="wrap acctWrap">
+    <div class="acctCard">
+
+      <form id="acctForm" class="acctForm" novalidate>
+        <div class="acctField">
+          <label for="acctName">What should we call you?</label>
+          <input id="acctName" type="text" autocomplete="name" placeholder="Your name">
+        </div>
+        <div class="acctField">
+          <label for="acctEmail">Email</label>
+          <input id="acctEmail" type="email" autocomplete="email" placeholder="you@example.com">
+        </div>
+        <div class="acctRow">
+          <div class="acctField">
+            <label for="acctPassword">Password</label>
+            <div class="acctPasswordWrap">
+              <input id="acctPassword" type="password" autocomplete="new-password" placeholder="8+ characters">
+              <button type="button" class="acctEye" data-target="acctPassword">Show</button>
+            </div>
+          </div>
+          <div class="acctField">
+            <label for="acctConfirm">Confirm password</label>
+            <div class="acctPasswordWrap">
+              <input id="acctConfirm" type="password" autocomplete="new-password" placeholder="Type it again">
+              <button type="button" class="acctEye" data-target="acctConfirm">Show</button>
+            </div>
+          </div>
+        </div>
+        <div class="acctRow">
+          <div class="acctField">
+            <label for="acctCountry">Country</label>
+            <select id="acctCountry">
+              <option value="United States" selected>United States</option>
+              <option>Afghanistan</option><option>Albania</option><option>Algeria</option>
+              <option>Andorra</option><option>Angola</option><option>Antigua and Barbuda</option>
+              <option>Argentina</option><option>Armenia</option><option>Australia</option>
+              <option>Austria</option><option>Azerbaijan</option><option>Bahamas</option>
+              <option>Bahrain</option><option>Bangladesh</option><option>Barbados</option>
+              <option>Belarus</option><option>Belgium</option><option>Belize</option>
+              <option>Benin</option><option>Bhutan</option><option>Bolivia</option>
+              <option>Bosnia and Herzegovina</option><option>Botswana</option><option>Brazil</option>
+              <option>Brunei</option><option>Bulgaria</option><option>Burkina Faso</option>
+              <option>Burundi</option><option>Cabo Verde</option><option>Cambodia</option>
+              <option>Cameroon</option><option>Canada</option><option>Central African Republic</option>
+              <option>Chad</option><option>Chile</option><option>China</option>
+              <option>Colombia</option><option>Comoros</option><option>Congo (Republic of the)</option>
+              <option>Congo (Democratic Republic of the)</option><option>Costa Rica</option><option>Croatia</option>
+              <option>Cuba</option><option>Cyprus</option><option>Czechia</option>
+              <option>Denmark</option><option>Djibouti</option><option>Dominica</option>
+              <option>Dominican Republic</option><option>Ecuador</option><option>Egypt</option>
+              <option>El Salvador</option><option>Equatorial Guinea</option><option>Eritrea</option>
+              <option>Estonia</option><option>Eswatini</option><option>Ethiopia</option>
+              <option>Fiji</option><option>Finland</option><option>France</option>
+              <option>Gabon</option><option>Gambia</option><option>Georgia</option>
+              <option>Germany</option><option>Ghana</option><option>Greece</option>
+              <option>Grenada</option><option>Guatemala</option><option>Guinea</option>
+              <option>Guinea-Bissau</option><option>Guyana</option><option>Haiti</option>
+              <option>Honduras</option><option>Hungary</option><option>Iceland</option>
+              <option>India</option><option>Indonesia</option><option>Iran</option>
+              <option>Iraq</option><option>Ireland</option><option>Israel</option>
+              <option>Italy</option><option>Jamaica</option><option>Japan</option>
+              <option>Jordan</option><option>Kazakhstan</option><option>Kenya</option>
+              <option>Kiribati</option><option>Kosovo</option><option>Kuwait</option>
+              <option>Kyrgyzstan</option><option>Laos</option><option>Latvia</option>
+              <option>Lebanon</option><option>Lesotho</option><option>Liberia</option>
+              <option>Libya</option><option>Liechtenstein</option><option>Lithuania</option>
+              <option>Luxembourg</option><option>Madagascar</option><option>Malawi</option>
+              <option>Malaysia</option><option>Maldives</option><option>Mali</option>
+              <option>Malta</option><option>Marshall Islands</option><option>Mauritania</option>
+              <option>Mauritius</option><option>Mexico</option><option>Micronesia</option>
+              <option>Moldova</option><option>Monaco</option><option>Mongolia</option>
+              <option>Montenegro</option><option>Morocco</option><option>Mozambique</option>
+              <option>Myanmar</option><option>Namibia</option><option>Nauru</option>
+              <option>Nepal</option><option>Netherlands</option><option>New Zealand</option>
+              <option>Nicaragua</option><option>Niger</option><option>Nigeria</option>
+              <option>North Korea</option><option>North Macedonia</option><option>Norway</option>
+              <option>Oman</option><option>Pakistan</option><option>Palau</option>
+              <option>Palestine</option><option>Panama</option><option>Papua New Guinea</option>
+              <option>Paraguay</option><option>Peru</option><option>Philippines</option>
+              <option>Poland</option><option>Portugal</option><option>Qatar</option>
+              <option>Romania</option><option>Russia</option><option>Rwanda</option>
+              <option>Saint Kitts and Nevis</option><option>Saint Lucia</option><option>Saint Vincent and the Grenadines</option>
+              <option>Samoa</option><option>San Marino</option><option>Sao Tome and Principe</option>
+              <option>Saudi Arabia</option><option>Senegal</option><option>Serbia</option>
+              <option>Seychelles</option><option>Sierra Leone</option><option>Singapore</option>
+              <option>Slovakia</option><option>Slovenia</option><option>Solomon Islands</option>
+              <option>Somalia</option><option>South Africa</option><option>South Korea</option>
+              <option>South Sudan</option><option>Spain</option><option>Sri Lanka</option>
+              <option>Sudan</option><option>Suriname</option><option>Sweden</option>
+              <option>Switzerland</option><option>Syria</option><option>Taiwan</option>
+              <option>Tajikistan</option><option>Tanzania</option><option>Thailand</option>
+              <option>Timor-Leste</option><option>Togo</option><option>Tonga</option>
+              <option>Trinidad and Tobago</option><option>Tunisia</option><option>Turkey</option>
+              <option>Turkmenistan</option><option>Tuvalu</option><option>Uganda</option>
+              <option>Ukraine</option><option>United Arab Emirates</option><option>United Kingdom</option>
+              <option>Uruguay</option><option>Uzbekistan</option><option>Vanuatu</option>
+              <option>Vatican City</option><option>Venezuela</option><option>Vietnam</option>
+              <option>Yemen</option><option>Zambia</option><option>Zimbabwe</option>
+            </select>
+          </div>
+          <div class="acctField">
+            <label for="acctDob">Date of birth</label>
+            <input id="acctDob" type="text" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" maxlength="10">
+          </div>
+        </div>
+
+        <div class="acctError" id="acctError"></div>
+
+        <label class="acctCheck">
+          <input type="checkbox" id="acctTerms">
+          <span>I agree to the <a href="#" data-legal="terms">Terms</a>, <a href="#" data-legal="privacy">Privacy Policy</a>, and <a href="#" data-legal="aup">Acceptable Use Policy</a>.</span>
+        </label>
+        <label class="acctCheck">
+          <input type="checkbox" id="acctMarketing">
+          <span>Email me product updates.</span>
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-block" id="acctSubmit" disabled>Create account</button>
+
+        <p class="acctSwitch">Not ready yet? <a href="index.html">Back to helloim.ai</a></p>
+      </form>
+
+      <div class="acctDone" id="acctDone" hidden>
+        <div class="mark" aria-hidden="true">
+          <svg width="22" height="17" viewBox="0 0 26 20">
+            <rect x="0" y="9" width="17" height="4" rx="2" fill="#6ea8fe"/>
+            <rect x="21" y="4" width="4" height="12" rx="2" fill="#6fd08c"/>
+          </svg>
+        </div>
+        <h2 id="acctDoneHeading">You're in.</h2>
+        <p id="acctDoneBody">Your helloim.ai account is ready. Install the app and sign in to name your crew.</p>
+        <a class="btn btn-ghost" href="index.html">Back to helloim.ai</a>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap foot-row">
+    <div class="foot-brand">
+      <svg width="22" height="17" viewBox="0 0 26 20" aria-hidden="true">
+        <rect x="0" y="9" width="17" height="4" rx="2" fill="#6ea8fe"/>
+        <rect x="21" y="4" width="4" height="12" rx="2" fill="#6fd08c"/>
+      </svg>
+      helloim.ai
+    </div>
+    <div class="foot-meta">helloim.ai &middot; &copy; 2026 helloim.ai</div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var API_BASE = 'https://helloim.ai';
+
+  var form   = document.getElementById('acctForm');
+  var done   = document.getElementById('acctDone');
+  var error  = document.getElementById('acctError');
+  var submit = document.getElementById('acctSubmit');
+  var terms  = document.getElementById('acctTerms');
+
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var DOB_RE = /^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/((19|20)\d{2})$/;
+
+  function parseDob(str) {
+    var m = DOB_RE.exec(str);
+    if (!m) return null;
+    var month = parseInt(m[1], 10), day = parseInt(m[2], 10), year = parseInt(m[3], 10);
+    var d = new Date(year, month - 1, day);
+    if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+    return d;
+  }
+
+  function ageOn(dob, today) {
+    today = today || new Date();
+    var age = today.getFullYear() - dob.getFullYear();
+    var hadBirthday = today.getMonth() > dob.getMonth() ||
+      (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+    if (!hadBirthday) age -= 1;
+    return age;
+  }
+
+  function toIsoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+      '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  document.querySelectorAll('.acctEye').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = document.getElementById(btn.dataset.target);
+      var showing = input.type === 'password';
+      input.type = showing ? 'text' : 'password';
+      btn.textContent = showing ? 'Hide' : 'Show';
+    });
+  });
+
+  var dobInput = document.getElementById('acctDob');
+  dobInput.addEventListener('input', function () {
+    var digits = dobInput.value.replace(/\D/g, '').slice(0, 8);
+    var out = digits;
+    if (digits.length > 4) out = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+    else if (digits.length > 2) out = digits.slice(0, 2) + '/' + digits.slice(2);
+    dobInput.value = out;
+  });
+
+  document.querySelectorAll('.acctCheck a[data-legal]').forEach(function (a) {
+    a.addEventListener('click', function (e) { e.preventDefault(); });
+  });
+
+  terms.addEventListener('change', function () {
+    submit.disabled = !terms.checked;
+  });
+
+  // Exposed so a render check can show the confirmed state directly, without
+  // a live backend or a network round trip.
+  function showDone(name) {
+    form.hidden = true;
+    done.hidden = false;
+    if (name) {
+      document.getElementById('acctDoneHeading').textContent = 'You’re in, ' + name + '.';
+    }
+  }
+  window.__acctShowDone = showDone;
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    error.textContent = '';
+
+    var displayName = document.getElementById('acctName').value.trim();
+    var email = document.getElementById('acctEmail').value.trim();
+    var password = document.getElementById('acctPassword').value;
+    var confirm = document.getElementById('acctConfirm').value;
+    var country = document.getElementById('acctCountry').value;
+    var dobStr = document.getElementById('acctDob').value.trim();
+    var marketingOptIn = document.getElementById('acctMarketing').checked;
+
+    if (!displayName) { error.textContent = 'Tell us what to call you.'; return; }
+    if (!EMAIL_RE.test(email)) { error.textContent = 'Enter a valid email address.'; return; }
+    if (password.length < 8) { error.textContent = 'Password must be at least 8 characters.'; return; }
+    if (password !== confirm) { error.textContent = 'Those passwords don’t match.'; return; }
+    var dob = parseDob(dobStr);
+    if (!dob) { error.textContent = 'Enter your date of birth as MM/DD/YYYY.'; return; }
+    if (ageOn(dob) < 18) {
+      error.textContent = 'You must be 18 or older to create a helloim.ai account.';
+      return;
+    }
+    if (!terms.checked) {
+      error.textContent = 'Agree to the Terms, Privacy Policy, and Acceptable Use Policy to continue.';
+      return;
+    }
+
+    submit.disabled = true;
+    submit.textContent = 'Creating account…';
+
+    fetch(API_BASE + '/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        password: password,
+        displayName: displayName,
+        country: country,
+        dob: toIsoDate(dob),
+        termsAccepted: true,
+        marketingOptIn: marketingOptIn
+      })
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        return { ok: res.ok, status: res.status, body: body };
+      });
+    }).then(function (r) {
+      if (r.ok && r.body && r.body.token) {
+        showDone(displayName);
+      } else {
+        error.textContent = (r.body && r.body.error) ||
+          (r.status === 409 ? 'That email’s already registered.' : 'Couldn’t create that account.');
+        submit.disabled = !terms.checked;
+        submit.textContent = 'Create account';
+      }
+    }).catch(function () {
+      error.textContent = 'Couldn’t reach the sign-up service. Check your connection and try again.';
+      submit.disabled = !terms.checked;
+      submit.textContent = 'Create account';
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

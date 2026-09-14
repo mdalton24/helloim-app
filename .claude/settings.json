@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "claude-security@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true,
+    "mcp-server-dev@claude-plugins-official": true,
+    "playground@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/render-gate.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/lifeline-gate.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/offline-gate.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/local-first-gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/facts-gate.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/pipeline-card.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/heartbeat.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/verify-change.py",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /home/mdalton/Documents/JARVIS/hooks/roster-truth.py",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/log-request.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/crash-point.py",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/resume-process.py",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/boot-requests.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/check-jobs.py",
+            "asyncRewake": true,
+            "timeout": 20,
+            "rewakeSummary": "A dispatched job has stalled",
+            "rewakeMessage": "Going idle triggered the job check and it found something. Do not go quiet on this - work out whether each is genuinely running, re-dispatch what died, and tell Mark before he finds it himself."
+          },
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/check-etas.py",
+            "asyncRewake": true,
+            "timeout": 15,
+            "rewakeSummary": "A job is past the time you gave Mark",
+            "rewakeMessage": "Something is ALIVE and LATE \u2014 not stalled, which check-jobs.py already covers. Read what it is actually doing, not its heartbeat. Give it a new eta or tell it to hand back what it has. And tell Mark the estimate slipped before he asks."
+          },
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/log-latency.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/check-build.py",
+            "asyncRewake": true,
+            "timeout": 10,
+            "rewakeSummary": "The visualizer build has gone quiet",
+            "rewakeMessage": "The render archive has stopped growing while the build is still open. Mark, 2026-08-08: \"it is your job to make sure that this process is continious and not stalled.\" Do NOT answer this from the /build page - it reads the same directory the hook read. Go to Sam directly, find out whether it is mid-render or idle, and if it is idle SEND THE NEXT THING rather than noting it. Then move waiting_on and the step states in build-status.json so the page stops describing a state that ended."
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /home/mdalton/Documents/JARVIS/hooks/roster-truth.py",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /home/mdalton/Documents/JARVIS/hooks/pipeline-reconcile.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(systemctl --user list-units *)",
+      "Bash(systemctl --user list-timers *)",
+      "Bash(systemctl --user list-unit-files *)",
+      "Bash(systemctl --user show *)",
+      "Bash(systemctl --user status *)",
+      "Bash(systemctl --user cat *)",
+      "Bash(systemctl --user is-active *)",
+      "Bash(systemctl --user is-enabled *)",
+      "Bash(systemctl --user is-failed *)",
+      "Bash(systemctl list-units *)",
+      "Bash(systemctl list-timers *)",
+      "Bash(systemctl show *)",
+      "Bash(systemctl status *)",
+      "Bash(systemctl cat *)",
+      "Bash(systemctl is-enabled *)",
+      "Bash(journalctl *)",
+      "Bash(nvidia-smi)",
+      "Bash(nvidia-smi *)",
+      "Bash(ollama ps)",
+      "Bash(ollama ps *)",
+      "Bash(ollama list)",
+      "Bash(ollama list *)",
+      "Bash(ollama show *)",
+      "Bash(curl -s http://127.0.0.1:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(curl -sk https://127.0.0.1:*)",
+      "Bash(curl -sk https://localhost:*)",
+      "Bash(curl -sS http://127.0.0.1:*)",
+      "Bash(python3 drift-check.py)",
+      "Bash(python3 /home/mdalton/Documents/JARVIS/drift-check.py)",
+      "Bash(python3 ~/Documents/JARVIS/drift-check.py)",
+      "mcp__claude_ai_Gmail__search_threads",
+      "mcp__claude_ai_Gmail__get_thread",
+      "mcp__claude_ai_Gmail__get_message",
+      "mcp__claude_ai_Gmail__list_labels",
+      "mcp__claude_ai_Gmail__list_drafts",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "mcp__claude_ai_Google_Drive__list_recent_files",
+      "mcp__claude_ai_Google_Drive__read_file_content",
+      "mcp__claude_ai_Google_Drive__get_file_metadata",
+      "mcp__claude_ai_Google_Drive__get_file_permissions",
+      "mcp__claude_ai_Google_Calendar__list_calendars",
+      "mcp__claude_ai_Google_Calendar__list_events",
+      "mcp__claude_ai_Google_Calendar__search_events",
+      "mcp__claude_ai_Google_Calendar__get_event",
+      "Bash(cargo build)",
+      "Bash(cargo build *)",
+      "Bash(cargo test)",
+      "Bash(cargo test *)",
+      "Bash(cargo check)",
+      "Bash(cargo check *)",
+      "Bash(cargo clippy)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo tauri *)",
+      "Bash(cargo metadata *)",
+      "Bash(xdotool search *)",
+      "Bash(xwininfo *)",
+      "Bash(xlsclients)",
+      "Bash(xlsclients *)",
+      "mcp__nameos-memory__memory_search"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}

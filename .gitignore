@@ -1,6 +1,227 @@
-**/src-tauri/target/
-**/src-tauri/gen/
-**/node_modules/
-**/dist/
+# JARVIS boot config .gitignore
+#
+# Written 2026-08-02, before this tree was ever a git repository.
+#
+# This tree is small and is almost entirely the point of the repo: CLAUDE.md
+# (the boot config) and .claude/agents/*.md (the team). Those are tracked.
+
+# ─── LOCAL CLAUDE CODE SETTINGS ───────────────────────────────────────────
+# .claude/settings.local.json is excluded on the strength of Anthropic's own
+# documentation, checked 2026-08-02 at https://code.claude.com/docs/en/settings
+# which states it is "for settings that are not checked in" and that Claude
+# Code adds "**/.claude/settings.local.json" to the global git excludes file
+# when it writes one — and that if the file is created by hand, "add it to
+# your gitignore yourself". This is that.
+#
+# Verified separately on this machine: the current file contains no
+# secret-shaped value (zero runs of 30+ token characters). It is excluded on
+# convention and on the forward risk — that file is where credentials for MCP
+# servers and hooks would land later — not because it is dirty today.
+#
+# Consequence Mark should know about: the permission allowlist will not be
+# version controlled, so there is no rollback on it. If he would rather have
+# that history than the guard, delete these three lines.
+.claude/settings.local.json
+.claude/*.local.json
+**/.claude/settings.local.json
+
+# ─── CLAUDE CODE RUNTIME ──────────────────────────────────────────────────
+.claude/todos/
+.claude/shell-snapshots/
+.claude/statsig/
+.claude/projects/
+.claude/history.jsonl
+
+# ─── THE REQUEST RECORD ───────────────────────────────────────────────────
+# Held out of version control for the same reason as the three agent files at
+# the bottom of this file, arriving from a different direction.
+#
+# These two hold Mark's asks in his own words: .requests-inbox.md is the raw
+# hook capture of every prompt he sends, REQUESTS.md is the written-up version.
+# Sooner or later one of them says something about the private matter — "chase
+# the discovery deadline", a name, a date — and a commit is permanent. There is
+# no remote on this repo today, but the warning at the bottom of this file
+# applies here too: if one is ever added, this history goes with it.
+#
+# Losing history on these costs little. They are a working record, not code,
+# and the machine's own backup covers the disk. The tooling that writes them —
+# hooks/log-request.py and hooks/boot-requests.py — IS tracked, because the
+# mechanism is worth versioning and carries none of Mark's words.
+#
+# THAT LAST SENTENCE WAS FALSE FROM THE DAY IT WAS WRITTEN, AND IT IS TRUE NOW
+# ONLY BECAUSE 2026-08-04 CAUGHT IT. Neither hook was ever `git add`ed. The whole
+# of hooks/ sat untracked — `git status` said `?? hooks/` and `git check-ignore`
+# said nothing at all — so `git clean -fd` in this tree would have deleted the
+# entire request-persistence mechanism, on a box with one disk and no remote,
+# while this comment sat here telling the next session the files were safe.
+#
+# That is the specific failure worth naming: not an untracked file, but a
+# reassurance in a tracked file that stopped anybody looking. A comment that
+# asserts a state is a claim, and a claim that nothing verifies rots silently in
+# the direction that makes you comfortable. Corrected by adding the files, not by
+# softening the sentence.
+REQUESTS.md
+.requests-inbox.md
+
+# AND ITS BACKUPS, which is not a detail. Added 2026-08-07: before handing
+# REQUESTS.md to a specialist to edit in place, a copy is taken beside it. That
+# copy is a byte-for-byte duplicate of the file two lines above — Mark's words,
+# verbatim, private matter and all — and it lands UNTRACKED rather than ignored,
+# so the very next `git add -A` sweeps it into a permanent commit while the
+# original is correctly held back. The protection above is worth exactly nothing
+# if the copy walks around it.
+.REQUESTS-backup-*.md
+
+# AND THE 2026-09-11 COMPACTION ARCHIVES — same reason as the two lines above,
+# arriving from a different direction. memory-tools/compact_requests.py and
+# compact_inbox.py split the closed/synced-old content OUT of the two files
+# above into these; they are literally excerpts of the same text, so the same
+# "Mark's words, private matter and all" warning applies to them unchanged.
+# (*.bak-* below already covers the REQUESTS.md.bak-<ts> / .requests-inbox.md.bak-<ts>
+# backups those scripts also write.)
+REQUESTS-archive-2026-09-11.md
+.requests-inbox-archive-2026-09-11.md
+
+# ─── memory-tools (semantic index over the memory above) ─────────────────
+# index.db is a generated, rebuildable SQLite file (`python3 indexer.py
+# --rebuild` regenerates it from source in under a minute). It is also, by
+# construction, a searchable copy of most of this repo's own memory content —
+# committing a binary blob of that is both pointless (it's derived) and the
+# wrong shape of thing to keep in git history. exclude.py's denylist keeps the
+# private matter out of it, but "keep it out of the index" and "keep it out of
+# git" are two different disciplines and this repo doesn't need to rely on only
+# the first one.
+memory-tools/index.db
+memory-tools/__pycache__/
+
+# ─── SECRETS (guards) ─────────────────────────────────────────────────────
+*.env
+*.env.*
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.netrc
+
+# ─── HAND-ROLLED BACKUPS ──────────────────────────────────────────────────
+# Guard. In voice-line a *.bak copy of an env file still held a live token.
+# Backups are snapshots nobody audited; they are ignored on sight.
+*.bak
+*.bak.*
+*.backup
+*.orig
+*.rej
+*.old
+*.pre-*
+
+# ─── JUNK ─────────────────────────────────────────────────────────────────
 *.log
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
 .DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Directory rule was missing; only *.log was present. logs/vault-versions/*.md would have been tracked.
+logs/
+.claude/settings.local.json
+
+# agentic_os/'s chat-capture cursor: which line of each session transcript
+# has already been written into the vault. Machine state, not source, and it
+# is specific to this box's own transcript history -- committing it would
+# make a fresh checkout claim to have already captured chat it never saw.
+agentic_os/.state/
+
+# HELD OUT OF VERSION CONTROL, DELIBERATELY. Do not remove these three lines.
+#
+# The comment that used to sit here explained why, in terms that themselves
+# disclosed what the files disclose - in a tracked, committed file. That is the
+# same defect it was warning about, one layer out: a rule written so carefully
+# that the writing leaks. Found 2026-08-03 by the specialist whose job is
+# exactly this, reviewing his own configuration.
+#
+# The old text stays in git history and cannot be removed without rewriting it.
+# There is no remote on this repo, so today that history is on one disk and
+# nowhere else. IF A REMOTE IS EVER ADDED, THIS HISTORY GOES WITH IT - deal with
+# that before the first push, not after.
+#
+# These three carry no case facts. They are held out because a commit is
+# permanent and their existence is the disclosure. If they are ever to be
+# versioned, that is Mark's decision and it is genuinely irreversible.
+.claude/agents/sable.md
+.claude/agents/redmond.md
+.claude/agents/holloway.md
+
+# IN-FLIGHT.md holds Mark's verbatim words and the state of work in progress,
+# and it has already carried a line acknowledging the private matter exists.
+# Same reasoning as REQUESTS.md above: never committed. Added 2026-08-14.
+IN-FLIGHT.md
+IN-FLIGHT-*.md
+
+# BULK AND DERIVED — added 2026-08-15, when a checkpoint commit was asked for
+# and `git status` had 36 untracked entries hiding two enormous ones. These are
+# not secrets and not decisions; they are weight. `lan-serve/` alone is 1.5 GB
+# across 1905 files and `openjarvis-base/` is 99 MB across 1949 — committing
+# either into a repo with NO REMOTE buys nothing and makes every future clone,
+# diff and status slower forever. A repo that is painful to read is one nobody
+# checks, which is how 19 changed files sat uncommitted for a day.
+lan-serve/
+openjarvis-base/
+.wrangler/
+backups/
+alpaca-removed-*/
+
+# Timestamped hand-backups. The house makes these constantly before risky edits
+# (`*.bak-before-*`, `*.bak-20260811-*`). Git is the thing that makes them
+# unnecessary; committing them puts the crutch in the record beside the fix.
+*.bak
+*.bak-*
+.jobs-backup-*
+
+# Raw pastes and drafted outbound messages hold Mark's verbatim words and
+# client-facing drafts, same reasoning as .requests-inbox.md — never committed.
+inbox-paste/
+outbox/
+# Large render captures; regenerable, not source.
+board-catalog/
+
+# The natural voices, staged into the Windows installer by ship-windows.sh.
+# 115 MB of model weights that are fetched once and never edited — they are a
+# build input, not source, and a repository is the wrong place to keep them.
+desktop/installer/tts/
+desktop/installer/node/
+
+# ─── GENERATED ARTEFACTS, added 2026-08-29 ────────────────────────────────
+# 197 MB of untracked material had accumulated and drift-check.py was
+# correctly complaining every boot. Almost all of it is OUTPUT: screenshots
+# a render produced, Word documents a script builds, media pulled from an
+# API. Committing it would put 190 MB of regenerable bytes in front of every
+# future clone, and worse, it would bury the source that actually matters.
+#
+# The rule: if a script in this repo can rebuild it, it is not tracked. The
+# script is.
+desktop/shots/
+desktop/heygen/
+desktop/site/assets/
+*.docx
+*.xlsx
+*.mp4
+*.wav
+render-check/
+
+# Spent hook backups. Git history keeps them; a loose .bak beside a live
+# hook reads as work somebody still owes.
+hooks/*.bak-*
+helloim-social-skills/
+social-media-skills/
+helloim-social-skills/**
+social-media-skills/**
+
+helloim-app/Windows/windows-source/src-tauri/target/

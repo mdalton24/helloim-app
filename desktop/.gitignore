@@ -1,0 +1,27 @@
+# Build output.
+src-tauri/target/
+
+# Regenerated from tauri.conf.json and capabilities/ on every build. Committing
+# it means every build shows up as a diff nobody wrote.
+src-tauri/gen/schemas/
+
+# Installer inputs and output. All of it is BUILT or DOWNLOADED -- ship-windows.sh
+# copies the binary and the DLL in, fetches the 115 MB voice pack once, and
+# makensis produces the setup. Committing them would put ~270 MB of regenerable
+# blobs in the history, and git would carry every version of them forever.
+installer/helloim.ai.exe
+installer/helloim.ai-Setup.exe
+installer/DirectML.dll
+# Pre-rename artifact names -- stale build output may still be sitting on disk
+# from before the helloim.ai rename; ignore it too rather than let it show up
+# as an untracked file waiting to be committed by accident.
+installer/NameOS.exe
+installer/NameOS-Setup.exe
+installer/MicrosoftEdgeWebview2Setup.exe
+installer/vc_redist.x64.exe
+installer/vcrt/
+installer/tts/
+# The updater signature, produced by publish-release.py at release time. It is
+# not a secret -- it is just regenerated for every build, and a stale one on
+# disk is worse than none.
+*.sig

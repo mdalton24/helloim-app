@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scene · Rift Stone</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #081627; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* UI PANEL — remove this block to drop the controls */
+  #ui-panel { position: fixed; top: 12px; right: 12px; background: rgba(10,10,12,.75); color: #fff;
+    font: 11px/1.4 -apple-system, system-ui, sans-serif; padding: 8px 10px; border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    max-width: 240px; max-height: 80vh; overflow: auto; z-index: 1000; user-select: none; }
+  #ui-toggle { background: none; border: none; color: #fff; cursor: pointer; font-size: 14px; padding: 0; }
+  #ui-body { display: none; margin-top: 6px; }
+  #ui-panel.-open #ui-body { display: block; }
+  #ui-body label { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0; }
+  #ui-body input[type=color] { width: 28px; height: 20px; border: 1px solid rgba(255,255,255,.2); border-radius: 3px; padding: 0; background: none; cursor: pointer; }
+  #ui-body input[type=range] { width: 110px; }
+  #ui-buttons { display: flex; gap: 6px; margin-top: 8px; }
+  #ui-buttons button { flex: 1; cursor: pointer; background: rgba(255,255,255,.08); color: #fff;
+    border: 1px solid rgba(255,255,255,.18); border-radius: 4px; padding: 5px 6px; font: 11px/1 sans-serif; }
+  #ui-buttons button:hover { background: rgba(255,255,255,.16); }
+  #ui-snapshot { margin: 8px 0 0; padding: 6px 8px; background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 4px;
+    font: 10px/1.45 ui-monospace, 'SF Mono', Menlo, monospace;
+    white-space: pre-wrap; word-break: break-word; color: rgba(255,255,255,.88);
+    max-height: 240px; overflow: auto; user-select: text; cursor: text; }
+  /* END UI PANEL */
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<!-- UI PANEL — remove this block to drop the controls -->
+<div id="ui-panel">
+  <button id="ui-toggle" type="button" aria-label="Toggle controls">⚙ controls</button>
+  <div id="ui-body"></div>
+  <pre id="ui-snapshot" title="Click to select, then copy. These are the current CONFIG values."></pre>
+</div>
+<!-- END UI PANEL -->
+
+<script type="module">
+import * as THREE from 'three'
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+
+/* ============================================================
+   SCENE: RIFT STONE — a cracked stone shard hovering over a calm blue
+   sea at night, glowing bright icy-white light out of the fractures
+   that split it. The rock is a lumpy displaced boulder shaded as an icy
+   blue-grey shell (darker navy at the cap & tip); a custom shader carves
+   a bold Voronoi CRACK network across its surface and pushes cold light
+   out of the seams (with a soft bleed into the rock), pulsing gently.
+   The ocean is a real Gerstner+simplex swell shaded as realistic night
+   water: a fresnel sky reflection, a soft sheen, a pool of the stone's
+   glow beneath it, and a mist that melts the sea SMOOTHLY into a hazy
+   horizon. The sky is a deep-blue gradient with soft painted clouds. The
+   camera holds still — NO scene spin — the stone only bobs as it floats;
+   the mouse drives a light parallax. Final pass: sharpen + grain +
+   vignette; UnrealBloom on the seams. Fully self-contained.
+============================================================ */
+const CONFIG = {
+  skyTop:       '#0a1a3c',   // deep navy — top of the night sky
+  skyMid:       '#1b3564',   // soft blue glow behind the stone
+  skyLow:       '#1a2e54',   // mid navy
+  skyHorizon:   '#4c6f9e',   // hazy lighter blue band at the waterline
+  cloudColor:   '#93b4dc',   // soft cloud tint
+  cloudAmt:     0.32,        // how visible the clouds are
+  sunColor:     '#dcecff',   // cool key/glint colour
+  sunGlow:      '#7fb2ea',   // blue halo behind the stone
+  sunSize:      13.0,        // radius of that halo
+  sunStrength:  0.55,        // opacity of that halo
+
+  stoneColor:   '#2d4967',   // icy blue-grey rock albedo
+  crackColor:   '#e6f4ff',   // bright icy-white light from the cracks
+  crackScale:   1.1,         // size of the cell network (smaller = fewer, larger cracks)
+  crackWidth:   0.02,        // thickness of the glowing seams
+  crackGlow:    1.35,        // brightness of the light from the cracks
+  crackBleed:   0.24,        // soft glow spilling into the rock around seams
+  crackFine:    0.4,         // weight of the fine secondary crack octave
+  crackPulse:   0.44,        // how much the seams breathe
+  coreBias:     0.52,        // concentrate the glow toward the core
+  stoneRim:     0.0,         // sky light catching the stone's edges
+  roughLumps:   0.19,        // how lumpy/eroded the boulder silhouette is
+  stoneScale:   1.95,        // size of the stone
+  stonePosY:    1.55,        // how high it floats above the water
+  bob:          0.41,        // vertical float amplitude (NO spin)
+  bobSpeed:     0.5,         // float speed
+  shatter:      0.1,         // how far the chunks drift apart on hover (0 = disabled)
+
+  waterDeep:    '#081627',   // deep water body
+  waterGlow:    0.88,        // pool of the stone's glow on the water below
+  waveHeight:   1.44,        // swell amplitude
+  waveScale:    0.115,       // swell frequency (base Gerstner frequency)
+  waveSpeed:    0.82,        // swell drift speed
+  waterSpec:    1.34,        // sun specular strength on the crests
+  waterDetail:  0.04,        // high-frequency ripple detail on the normals
+  horizonFade:  0.58,        // how softly the water mists into the horizon
+
+  parallax:     1.2,         // mouse parallax strength (camera)
+  tilt:         0.22,        // faint stone lean toward the cursor
+  bloom:        0.72,        // glow amount
+  bloomThresh:  0.28,        // only the bright seams/glints bloom
+  exposure:     0.54,        // tone-mapping exposure
+  sharpen:      1.1,         // edge crispness of the final pass
+  grain:        0.0,         // film-noise amount
+  vignette:     0.58,        // corner darkening
+}
+
+/* ---------- DEFAULTS + localStorage (load BEFORE building the scene) ---------- */
+const DEFAULTS = JSON.parse(JSON.stringify(CONFIG))
+const STORAGE_KEY = 'getlayers:rift-stone'              // <- unique per scene
+try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); if (s) for (const k in s) if (k in CONFIG) CONFIG[k] = s[k] } catch (e) {}
+function saveConfig() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(CONFIG)) } catch (e) {} }
+
+function hexToColor(hex) { return new THREE.Color(hex) }
+function hexToVec3(hex) { const c = new THREE.Color(hex); return new THREE.Vector3(c.r, c.g, c.b) }
+function smooth(a, b, x) { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
+
+// Smooth trig "lump" field (JS) — erodes the boulder silhouette on the CPU once, so the
+// displaced geometry can carry proper recomputed normals for lit, rocky relief.
+function lump(x, y, z) {
+  let n = Math.sin(x * 2.1 + y * 1.7) * Math.cos(z * 1.9)
+  n += 0.5 * Math.sin(x * 4.3 - z * 3.1) * Math.cos(y * 3.7)
+  n += 0.25 * Math.sin(y * 8.2 + z * 7.4) * Math.cos(x * 6.9)
+  return n * 0.5   // ~[-0.9, 0.9]
+}
+
+/* ---------- SHARED GLSL ---------- */
+const SNOISE = `
+  vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+  vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+  float snoise(vec3 v){
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+    vec3 i  = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+    vec3 x1 = x0 - i1 + 1.0*C.xxx;
+    vec3 x2 = x0 - i2 + 2.0*C.xxx;
+    vec3 x3 = x0 - 1.0 + 3.0*C.xxx;
+    i = mod(i, 289.0);
+    vec4 p = permute(permute(permute(
+               i.z + vec4(0.0, i1.z, i2.z, 1.0))
+             + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+             + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    float n_ = 1.0/7.0;
+    vec3 ns = n_ * D.wyz - D.xzx;
+    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_);
+    vec4 x = x_ * ns.x + ns.yyyy;
+    vec4 y = y_ * ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+    vec4 s0 = floor(b0)*2.0 + 1.0;
+    vec4 s1 = floor(b1)*2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+  }`
+// 3D Voronoi returning the two nearest feature distances — the seam between cells
+// (F2 - F1 small) is where the cracks live.
+const VORONOI = `
+  vec3 hash33(vec3 p){
+    p = vec3(dot(p, vec3(127.1, 311.7, 74.7)),
+             dot(p, vec3(269.5, 183.3, 246.1)),
+             dot(p, vec3(113.5, 271.9, 124.6)));
+    return fract(sin(p) * 43758.5453);
+  }
+  vec2 voronoi(vec3 p){
+    vec3 n = floor(p); vec3 f = fract(p);
+    float f1 = 9.0, f2 = 9.0;
+    for (int k = -1; k <= 1; k++)
+    for (int j = -1; j <= 1; j++)
+    for (int i = -1; i <= 1; i++){
+      vec3 g = vec3(float(i), float(j), float(k));
+      vec3 o = hash33(n + g);
+      vec3 r = g + o - f;
+      float d = dot(r, r);
+      if (d < f1){ f2 = f1; f1 = d; } else if (d < f2){ f2 = d; }
+    }
+    return vec2(sqrt(f1), sqrt(f2));
+  }`
+// Shared night-sky gradient — a light hazy horizon darkening up to a deep top. Used by BOTH
+// the sky dome and the water's reflection, so the sea and sky meet in the same colour at the
+// horizon (a seamless vanish) and the water reflects a physically-consistent sky.
+const SKY = `
+  vec3 skyColor(vec3 rd, vec3 top, vec3 mid, vec3 horizon){
+    float t = clamp(rd.y, 0.0, 1.0);
+    vec3 c = mix(horizon, mid, smoothstep(0.0, 0.26, t));
+    c = mix(c, top, smoothstep(0.15, 0.7, t));
+    return c;
+  }`
+
+/* ---------- RENDERER / SCENE / CAMERA ---------- */
+const canvas = document.getElementById('scene')
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMappingExposure = CONFIG.exposure
+
+const scene = new THREE.Scene()
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 400)
+const CAM_HOME = new THREE.Vector3(0, 0.35, 14)
+camera.position.copy(CAM_HOME)
+
+// A soft key from above-front — gives the icy stone even light and the water a gentle sheen.
+const SUN_DIR = new THREE.Vector3(0.1, 0.75, 0.5).normalize()
+
+/* ---------- SKY DOME (shader gradient + animated FBM clouds + glow behind the stone) ---------- */
+// A big back-faced sphere around the camera, drawn as pure background (no depth). The gradient
+// uses the shared skyColor(); billowing FBM clouds drift across the mid-sky over time. Because
+// the water reflects + fogs into the SAME skyColor, the horizon has no seam.
+scene.background = hexToColor(CONFIG.skyTop)
+const skyUniforms = {
+  uTime:     { value: 0 },
+  uTop:      { value: hexToVec3(CONFIG.skyTop) },
+  uMid:      { value: hexToVec3(CONFIG.skyMid) },
+  uHorizon:  { value: hexToVec3(CONFIG.skyHorizon) },
+  uCloudCol: { value: hexToVec3(CONFIG.cloudColor) },
+  uCloudAmt: { value: CONFIG.cloudAmt },
+  uGlowCol:  { value: hexToVec3(CONFIG.sunGlow) },
+  uGlowStr:  { value: CONFIG.sunStrength * 0.5 },
+  uGlowSize: { value: CONFIG.sunSize },
+}
+const skyMat = new THREE.ShaderMaterial({
+  uniforms: skyUniforms,
+  side: THREE.BackSide, depthWrite: false, depthTest: true, fog: false,
+  vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    precision highp float;
+    ${SNOISE}
+    ${SKY}
+    varying vec3 vDir;
+    uniform float uTime, uCloudAmt, uGlowStr, uGlowSize;
+    uniform vec3 uTop, uMid, uHorizon, uCloudCol, uGlowCol;
+    float fbm(vec2 p){
+      float f = 0.0, a = 0.55;
+      for (int i = 0; i < 5; i++){ f += a * snoise(vec3(p, 1.7)); p = p * 2.03 + 1.3; a *= 0.5; }
+      return f;
+    }
+    void main(){
+      vec3 rd = normalize(vDir);
+      vec3 col = skyColor(rd, uTop, uMid, uHorizon);
+      // soft glow behind the stone (the halo — folded into the dome so there's no sprite quad)
+      float g = max(dot(rd, normalize(vec3(0.0, 0.30, -1.0))), 0.0);
+      col += uGlowCol * pow(g, uGlowSize) * uGlowStr;
+      // animated clouds — billowing FBM drifting slowly, banded in the mid sky.
+      // NOTE: guard the projection denominator — at rd.y≈-0.30 it would hit 0 → Inf → NaN,
+      // and NaN*0 stays NaN in GLSL, which flickered through as black fragments.
+      float el = clamp(rd.y, 0.0, 1.0);
+      vec2 cuv = rd.xz / max(rd.y + 0.30, 0.08) * 1.1;
+      cuv += vec2(uTime * 0.011, uTime * 0.004);
+      float n = fbm(cuv * 1.2) * 0.7 + fbm(cuv * 2.7 + 4.0) * 0.3;
+      float clouds = clamp(smoothstep(0.12, 0.82, n), 0.0, 1.0);
+      clouds *= smoothstep(0.02, 0.32, el) * (1.0 - smoothstep(0.78, 1.0, el));
+      col = mix(col, uCloudCol, clouds * uCloudAmt);
+      gl_FragColor = vec4(clamp(col, 0.0, 1000.0), 1.0);   // NaN/Inf guard (see stone shader)
+    }`,
+})
+const skyDome = new THREE.Mesh(new THREE.SphereGeometry(200, 40, 24), skyMat)
+skyDome.renderOrder = -1
+skyDome.frustumCulled = false
+scene.add(skyDome)
+
+/* ---------- THE CRACKED STONE (lumpy boulder + Voronoi seam-light shader) ---------- */
+// A high-detail icosphere reshaped into a standing monolith, eroded on the CPU by the
+// lump() field so it reads as a rough rock (with correct recomputed normals), then
+// chipped a touch. The shader shades it as dark sun-warmed stone and blazes hot light
+// out of the Voronoi cell seams, with a soft bleed into the rock around each crack.
+const MAX_SEEDS = 96      // hard cap on Voronoi cells (MUST match the fragment shader array size)
+
+// The stone's surface: an icosphere reshaped into a standing monolith and eroded on the CPU by the
+// lump() field. Kept fairly low-poly on purpose — the crack CUTS are exact regardless of
+// tessellation now, so detail only sets how faceted/round the rock reads.
+function makeErodedGeometry() {
+  const geo = new THREE.IcosahedronGeometry(1, 8)
+  const p = geo.attributes.position
+  const amt = CONFIG.roughLumps
+  for (let i = 0; i < p.count; i++) {
+    let x = p.getX(i), y = p.getY(i), z = p.getZ(i)
+    // standing monolith: a little taller than wide, mildly tapered top & bottom
+    const ny = y
+    let taper = 0.72 + 0.28 * smooth(-1.0, -0.2, ny)      // narrow the base
+    taper *= 1.0 - 0.14 * smooth(0.4, 1.0, ny)            // ease the crown
+    x *= 0.94 * taper; z *= 0.66 * taper; y *= 1.32
+    // erode along the surface direction with the lump field → rocky relief
+    const d = Math.hypot(x, y, z) || 1
+    const disp = lump(x * 1.6, y * 1.6, z * 1.6) * amt
+    p.setXYZ(i, x + (x / d) * disp, y + (y / d) * disp, z + (z / d) * disp)
+  }
+  geo.computeVertexNormals()
+  return geo
+}
+
+/* ---------- REAL VORONOI FRACTURE (CPU) ----------
+   To break the stone into GENUINE separate cells with CLEAN edges exactly on the glowing cracks:
+   scatter one seed per grid cell (in crackScale space) and CUT the shell along the Voronoi
+   bisectors (clip each triangle to each overlapping cell). The SAME seeds drive the fragment's
+   primary crack octave (passed as uSeeds), so the cut edges land dead on the drawn seams. Every
+   output vertex carries its cell centre (aCell) so the vertex shader drifts whole cells apart. */
+function rand3(i, j, k, salt) {
+  const s = Math.sin(i * 127.1 + j * 311.7 + k * 74.7 + salt * 53.7) * 43758.5453
+  return s - Math.floor(s)
+}
+// one seed per integer grid cell (crackScale space) that lands near the stone → OBJECT-space seeds
+function buildSeeds(geo, scale) {
+  geo.computeBoundingBox()
+  const bb = geo.boundingBox, m = 0.45
+  const lo = v => Math.floor(v * scale) - 1, hi = v => Math.floor(v * scale) + 1
+  const seeds = []
+  // jitter kept to the CENTRE of each cell ([0.28,0.72], not [0,1)) so neighbouring seeds can't
+  // land almost on top of each other — a near-coincident pair makes the `f2−f1` seam blow up into
+  // a fat white blob instead of a thin crack.
+  const jit = (i, j, k, s) => 0.28 + 0.44 * rand3(i, j, k, s)
+  for (let i = lo(bb.min.x); i <= hi(bb.max.x); i++)
+  for (let j = lo(bb.min.y); j <= hi(bb.max.y); j++)
+  for (let k = lo(bb.min.z); k <= hi(bb.max.z); k++) {
+    const x = (i + jit(i, j, k, 0)) / scale
+    const y = (j + jit(i, j, k, 1)) / scale
+    const z = (k + jit(i, j, k, 2)) / scale
+    if (x < bb.min.x - m || x > bb.max.x + m || y < bb.min.y - m || y > bb.max.y + m || z < bb.min.z - m || z > bb.max.z + m) continue
+    seeds.push({ x, y, z })
+    if (seeds.length >= MAX_SEEDS) return seeds
+  }
+  return seeds
+}
+function d2(a, b) { const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z; return dx * dx + dy * dy + dz * dz }
+// clip polygon (array of {p,n}) to the S-side of bisector(S,K); interpolates position AND normal
+function clipHalf(poly, S, K) {
+  const mx = (S.x + K.x) * 0.5, my = (S.y + K.y) * 0.5, mz = (S.z + K.z) * 0.5
+  const nx = K.x - S.x, ny = K.y - S.y, nz = K.z - S.z
+  const sd = v => (v.p.x - mx) * nx + (v.p.y - my) * ny + (v.p.z - mz) * nz
+  const out = []
+  for (let i = 0; i < poly.length; i++) {
+    const A = poly[i], B = poly[(i + 1) % poly.length]
+    const da = sd(A), db = sd(B), ain = da <= 0, bin = db <= 0
+    if (ain) out.push(A)
+    if (ain !== bin) {
+      const t = da / (da - db)
+      out.push({
+        p: { x: A.p.x + (B.p.x - A.p.x) * t, y: A.p.y + (B.p.y - A.p.y) * t, z: A.p.z + (B.p.z - A.p.z) * t },
+        n: { x: A.n.x + (B.n.x - A.n.x) * t, y: A.n.y + (B.n.y - A.n.y) * t, z: A.n.z + (B.n.z - A.n.z) * t },
+      })
+    }
+  }
+  return out
+}
+// intersection of a triangle with the Voronoi cell of seed s (clip against every other bisector)
+function clipToCell(tri, s, seeds) {
+  let poly = tri
+  for (let k = 0; k < seeds.length; k++) {
+    if (k === s) continue
+    poly = clipHalf(poly, seeds[s], seeds[k])
+    if (poly.length < 3) return null
+  }
+  return poly
+}
+// cut the eroded shell into per-cell pieces → fresh BufferGeometry (position, normal, aCell)
+function fractureGeometry(geo, seeds) {
+  const pos = geo.attributes.position, nor = geo.attributes.normal, idx = geo.index
+  const triN = idx ? idx.count / 3 : pos.count / 3
+  const P = [], Nn = [], C = []
+  const vert = i => ({ p: { x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) }, n: { x: nor.getX(i), y: nor.getY(i), z: nor.getZ(i) } })
+  for (let t = 0; t < triN; t++) {
+    const i0 = idx ? idx.getX(t * 3) : t * 3, i1 = idx ? idx.getX(t * 3 + 1) : t * 3 + 1, i2 = idx ? idx.getX(t * 3 + 2) : t * 3 + 2
+    const tri = [vert(i0), vert(i1), vert(i2)]
+    const cen = { x: (tri[0].p.x + tri[1].p.x + tri[2].p.x) / 3, y: (tri[0].p.y + tri[1].p.y + tri[2].p.y) / 3, z: (tri[0].p.z + tri[1].p.z + tri[2].p.z) / 3 }
+    let dNear = Infinity, triRad = 0
+    for (const s of seeds) { const dd = d2(cen, s); if (dd < dNear) dNear = dd }
+    for (const v of tri) { const dd = d2(cen, v.p); if (dd > triRad) triRad = dd }
+    const R = Math.sqrt(dNear) + 2 * Math.sqrt(triRad) + 1e-5   // candidate cells that could overlap
+    for (let s = 0; s < seeds.length; s++) {
+      if (Math.sqrt(d2(cen, seeds[s])) > R) continue
+      const poly = clipToCell(tri, s, seeds)
+      if (!poly || poly.length < 3) continue
+      const seed = seeds[s]
+      for (let mi = 1; mi < poly.length - 1; mi++) {   // fan-triangulate the cell polygon
+        for (const v of [poly[0], poly[mi], poly[mi + 1]]) {
+          P.push(v.p.x, v.p.y, v.p.z); Nn.push(v.n.x, v.n.y, v.n.z); C.push(seed.x, seed.y, seed.z)
+        }
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3))
+  g.setAttribute('aCell', new THREE.Float32BufferAttribute(C, 3))
+  return g
+}
+// build the fractured stone AND push the matching (scaled) seeds into the crack uniforms
+function buildStone() {
+  const eroded = makeErodedGeometry()
+  const seeds = buildSeeds(eroded, CONFIG.crackScale)
+  const frac = fractureGeometry(eroded, seeds)
+  const arr = stoneUniforms.uSeeds.value
+  for (let i = 0; i < MAX_SEEDS; i++) {
+    if (i < seeds.length) arr[i].set(seeds[i].x * CONFIG.crackScale, seeds[i].y * CONFIG.crackScale, seeds[i].z * CONFIG.crackScale)
+    else arr[i].set(0, 0, 0)
+  }
+  stoneUniforms.uSeedCount.value = Math.min(seeds.length, MAX_SEEDS)
+  return frac
+}
+const stoneUniforms = {
+  uTime:     { value: 0 },
+  uScale:    { value: CONFIG.crackScale },
+  uWidth:    { value: CONFIG.crackWidth },
+  uGlow:     { value: CONFIG.crackGlow },
+  uBleed:    { value: CONFIG.crackBleed },
+  uFine:     { value: CONFIG.crackFine },
+  uPulse:    { value: CONFIG.crackPulse },
+  uCore:     { value: CONFIG.coreBias },
+  uRim:      { value: CONFIG.stoneRim },
+  uShatter:  { value: 0 },                  // 0 = whole stone, 1 = fully burst (eased on hover)
+  uSpread:   { value: CONFIG.shatter },     // burst distance
+  uStone:    { value: hexToVec3(CONFIG.stoneColor) },
+  uCrack:    { value: hexToVec3(CONFIG.crackColor) },
+  uSun:      { value: hexToVec3(CONFIG.sunColor) },
+  uSky:      { value: hexToVec3(CONFIG.skyLow) },
+  uSunDir:   { value: SUN_DIR.clone() },
+  uSeeds:    { value: Array.from({ length: MAX_SEEDS }, () => new THREE.Vector3()) },  // Voronoi cell seeds (scaled space)
+  uSeedCount:{ value: 0 },
+}
+const stoneMat = new THREE.ShaderMaterial({
+  uniforms: stoneUniforms,
+  // front-side only: back faces of the hollow shell are culled, so parted shards don't reveal any
+  // "insides" — the thin gaps read as the glowing seams widening, not an inside-out interior.
+  vertexShader: `
+    uniform float uShatter, uSpread;
+    attribute vec3 aCell;            // this vertex's Voronoi CELL CENTRE (object space), baked by the CPU fracture
+    varying vec3 vObj; varying vec3 vN; varying vec3 vView;
+    // rotate v around a unit axis by angle (Rodrigues) — a gentle per-cell tumble
+    vec3 rotAxis(vec3 v, vec3 axis, float ang){
+      float c = cos(ang), s = sin(ang);
+      return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);
+    }
+    void main(){
+      vObj = position;                 // keep the crack pattern welded to the piece as it flies
+      vec3 pos = position;
+      vec3 nrm = normal;
+      if (uShatter > 0.0001 && uSpread > 0.0){
+        // Every vertex of a fractured cell carries the SAME aCell, so the whole piece moves as one
+        // rigid shard — and because the mesh was actually CUT along the Voronoi, the parting edges
+        // are clean, exactly on the glowing seams.
+        vec3 cellC = aCell;
+        float rnd = fract(sin(dot(cellC, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+        vec3 dir  = normalize(vec3(cellC.x, cellC.y * 0.7, cellC.z) + 1e-4);   // out from the core
+        vec3 axis = normalize(fract(sin(vec3(
+                      dot(cellC, vec3(12.9, 78.2, 37.7)),
+                      dot(cellC, vec3(93.1, 11.7, 54.3)),
+                      dot(cellC, vec3(41.3, 289.1, 7.9)))) * 43758.5453) * 2.0 - 1.0
+                      + vec3(0.001, 0.002, 0.003));   // +eps so a rare all-0.5 hash can't zero the axis
+        float k    = clamp(uShatter * (0.6 + 0.7 * rnd), 0.0, 1.0);            // slight per-shard stagger
+        float spin = k * (0.06 + 0.12 * rnd) * (step(0.5, rnd) * 2.0 - 1.0);   // barely a wobble
+        vec3 local = pos - cellC;
+        pos = cellC + rotAxis(local, axis, spin);                             // rigid shard rotation
+        nrm = rotAxis(nrm, axis, spin);
+        pos += dir * k * uSpread * (0.55 + 0.9 * rnd);                        // drift the shard outward
+      }
+      vN = normalize(normalMatrix * nrm);
+      vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+      vView = -mv.xyz;
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: `
+    precision highp float;
+    ${VORONOI}
+    varying vec3 vObj; varying vec3 vN; varying vec3 vView;
+    uniform float uTime, uScale, uWidth, uGlow, uBleed, uFine, uPulse, uCore, uRim, uShatter;
+    uniform vec3 uStone, uCrack, uSun, uSky, uSunDir;
+    uniform int uSeedCount;
+    uniform vec3 uSeeds[96];   // MUST match MAX_SEEDS in JS
+    void main(){
+      vec3 N = normalize(vN);
+      vec3 V = normalize(vView);
+      // --- crack network: the BOLD primary octave is the SAME explicit seeds the CPU fractured
+      //     along, so the glowing seam sits exactly on the cut; a faint hash octave adds crackle ---
+      vec3 q = vObj * uScale;
+      float f1 = 1e9, f2 = 1e9;
+      for (int i = 0; i < 96; i++){
+        if (i >= uSeedCount) break;
+        float d = distance(q, uSeeds[i]);
+        if (d < f1){ f2 = f1; f1 = d; } else if (d < f2){ f2 = d; }
+      }
+      float seamA = f2 - f1;
+      vec2 b = voronoi(vObj * uScale * 2.6 + 13.0);
+      float seamB = b.y - b.x;
+      float crack = max(1.0 - smoothstep(0.0, uWidth, seamA),
+                        (1.0 - smoothstep(0.0, uWidth * 0.6, seamB)) * uFine);
+      // soft light bleeding into the rock around each seam
+      float bleed = max(1.0 - smoothstep(0.0, uWidth * 5.0, seamA),
+                        (1.0 - smoothstep(0.0, uWidth * 3.5, seamB)) * uFine);
+      // concentrate the fire toward the core, and let it breathe
+      float coreMask = mix(1.0, 1.0 - smoothstep(0.0, 1.4, length(vObj)), uCore);
+      float pulse = 1.0 + uPulse * sin(uTime * 1.6 + f1 * 8.0);
+      float fire = crack * pulse * coreMask;
+      // --- stone shading: an icy shell, darker navy at the top cap & bottom tip ---
+      float bodyShade = 0.42 + 0.58 * (1.0 - smoothstep(0.35, 1.4, abs(vObj.y)));
+      float diff = max(dot(N, uSunDir), 0.0);
+      vec3 lit = (uStone * (0.5 + 0.5 * diff) * uSun + uStone * uSky * 0.55) * bodyShade;
+      float fres = pow(1.0 - max(dot(N, V), 0.0), 3.5);
+      lit += fres * uSky * uRim;
+      // --- emissive seams + bleed ---
+      vec3 emis = uCrack * fire * uGlow;
+      emis += uCrack * bleed * coreMask * uBleed;
+      emis *= 1.0 + uShatter * 0.9;          // the core flares hotter as the shards pull apart
+      // NaN/Inf guard: the stone is the brightest object, so a single poisoned pixel
+      // here gets smeared by UnrealBloom's low-res mips into a BLACK BLOCK over the rock
+      // (the reported flashing rectangle). Clamping to a finite range makes that impossible.
+      vec3 outc = clamp(lit + emis, 0.0, 1000.0);
+      gl_FragColor = vec4(outc, 1.0);
+    }`,
+})
+const stone = new THREE.Mesh(buildStone(), stoneMat)
+let builtScale = CONFIG.crackScale, builtLumps = CONFIG.roughLumps   // rebuild the fracture when these change
+const stoneGroup = new THREE.Group()
+stoneGroup.add(stone)
+stoneGroup.scale.setScalar(CONFIG.stoneScale)
+stoneGroup.position.y = CONFIG.stonePosY
+scene.add(stoneGroup)
+
+/* ---------- NIGHT OCEAN (Gerstner swell + FBM detail normals + sky reflection) ---------- */
+// Best-practice real-time water: a sum of directional GERSTNER waves (sharpened crests, several
+// scales) for the surface + high-frequency FBM ripples perturbing the normal for glints; shaded
+// by a Schlick FRESNEL blend between deep water and the reflected sky (skyColor), plus a sharp
+// sun specular. The far sea fogs into the exact horizon colour, so it dissolves without a seam.
+const waterUniforms = {
+  uTime:      { value: 0 },
+  uWaveH:     { value: CONFIG.waveHeight },
+  uWaveScale: { value: CONFIG.waveScale },
+  uWaveSpeed: { value: CONFIG.waveSpeed },
+  uSpec:      { value: CONFIG.waterSpec },
+  uDetail:    { value: CONFIG.waterDetail },
+  uGlowAmt:   { value: CONFIG.waterGlow },
+  uFade:      { value: CONFIG.horizonFade },
+  uDeep:      { value: hexToVec3(CONFIG.waterDeep) },
+  uSunCol:    { value: hexToVec3(CONFIG.sunColor) },
+  uGlowCol:   { value: hexToVec3(CONFIG.sunGlow) },
+  uTop:       { value: hexToVec3(CONFIG.skyTop) },
+  uMid:       { value: hexToVec3(CONFIG.skyMid) },
+  uHorizon:   { value: hexToVec3(CONFIG.skyHorizon) },
+  uShardX:    { value: 0 },
+  uCam:       { value: new THREE.Vector3() },
+  uSunDir:    { value: SUN_DIR.clone() },
+}
+const waterGeo = new THREE.PlaneGeometry(600, 600, 360, 360)
+const waterMat = new THREE.ShaderMaterial({
+  uniforms: waterUniforms,
+  vertexShader: `
+    uniform float uTime, uWaveH, uWaveScale, uWaveSpeed;
+    varying vec3 vWorld; varying vec3 vNormal;
+    // one Gerstner wave: displaces P (incl. horizontal crest sharpening) and accumulates the normal
+    void gerstner(vec2 xz, vec2 dir, float amp, float freq, float spd, float steep, float t,
+                  inout vec3 P, inout vec3 n){
+      dir = normalize(dir);
+      float f = freq * dot(dir, xz) - spd * t;
+      float c = cos(f), s = sin(f);
+      P.x += steep * amp * dir.x * c;
+      P.z += steep * amp * dir.y * c;
+      P.y += amp * s;
+      float wa = freq * amp;
+      n.x += -dir.x * wa * c;
+      n.z += -dir.y * wa * c;
+      n.y += -steep * wa * s;
+    }
+    void main(){
+      float t = uTime * uWaveSpeed;
+      vec2 xz = vec2(position.x, -position.y);      // plane XY → world XZ
+      vec3 P = vec3(xz.x, 0.0, xz.y);
+      vec3 n = vec3(0.0, 1.0, 0.0);
+      float A = uWaveH, K = uWaveScale;
+      gerstner(xz, vec2( 1.0,  0.25), A * 1.00, K * 1.0, 1.00, 0.55, t, P, n);
+      gerstner(xz, vec2(-0.7,  1.00), A * 0.52, K * 1.9, 1.10, 0.40, t, P, n);
+      gerstner(xz, vec2( 0.5, -0.80), A * 0.28, K * 3.4, 0.90, 0.30, t, P, n);
+      gerstner(xz, vec2(-1.0, -0.35), A * 0.15, K * 6.3, 1.25, 0.22, t, P, n);
+      gerstner(xz, vec2( 0.2,  1.00), A * 0.09, K * 9.7, 1.40, 0.16, t, P, n);
+      vec4 wp = modelMatrix * vec4(P, 1.0);
+      vWorld = wp.xyz; vNormal = normalize(n);
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    precision highp float;
+    ${SNOISE}
+    ${SKY}
+    varying vec3 vWorld; varying vec3 vNormal;
+    uniform float uTime, uSpec, uDetail, uGlowAmt, uFade, uShardX;
+    uniform vec3 uDeep, uSunCol, uGlowCol, uTop, uMid, uHorizon, uCam, uSunDir;
+    void main(){
+      // high-frequency ripple detail — perturb the normal from the gradient of an animated FBM
+      vec2 q = vWorld.xz;
+      float e = 0.5;
+      float n0 = snoise(vec3(q * 0.75, uTime * 0.25));
+      float nx = snoise(vec3((q + vec2(e, 0.0)) * 0.75, uTime * 0.25));
+      float nz = snoise(vec3((q + vec2(0.0, e)) * 0.75, uTime * 0.25));
+      vec3 detail = vec3(-(nx - n0) / e, 1.0, -(nz - n0) / e);
+      // fade the fine ripples out with distance (they'd alias into noise at the horizon)
+      float distC = length(vWorld - uCam);
+      float dfade = 1.0 - smoothstep(20.0, 90.0, distC);
+      vec3 N = normalize(mix(vec3(0.0, 1.0, 0.0), normalize(vNormal), 1.0) + (detail - vec3(0.0, 1.0, 0.0)) * uDetail * dfade);
+
+      vec3 V = normalize(uCam - vWorld);
+      // reflected sky (keep the ray above the horizon so it always samples sky, not itself)
+      vec3 R = reflect(-V, N); R.y = abs(R.y);
+      vec3 skyRefl = skyColor(R, uTop, uMid, uHorizon);
+      // Schlick fresnel — steep view sees dark deep water, grazing sees the bright sky
+      float fres = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
+      vec3 col = mix(uDeep, skyRefl, fres);
+      // sharp sun specular off the crests
+      float sun = pow(max(dot(R, uSunDir), 0.0), 200.0);
+      col += uSunCol * sun * uSpec;
+      // soft pool of the stone's glow directly below it
+      float d = length(vWorld.xz - vec2(uShardX, 0.0));
+      float pool = exp(-d * d * 0.05);
+      col += uGlowCol * pool * uGlowAmt * (0.4 + 0.6 * fres);
+      // dissolve into the horizon colour with distance — matches the sky dome exactly (seamless)
+      float fog = smoothstep(22.0, 70.0 + 120.0 * uFade, distC);
+      col = mix(col, uHorizon, fog);
+      gl_FragColor = vec4(clamp(col, 0.0, 1000.0), 1.0);   // NaN/Inf guard (see stone shader)
+    }`,
+})
+const water = new THREE.Mesh(waterGeo, waterMat)
+water.position.y = -3.0
+water.frustumCulled = false
+scene.add(water)
+
+/* ---------- POST-PROCESSING ---------- */
+const composer = new EffectComposer(renderer)
+composer.addPass(new RenderPass(scene, camera))
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), CONFIG.bloom, 0.55, CONFIG.bloomThresh)
+composer.addPass(bloomPass)
+composer.addPass(new OutputPass())
+
+const PostFX = {
+  uniforms: {
+    tDiffuse:   { value: null },
+    uResolution:{ value: new THREE.Vector2() },
+    uTime:      { value: 0 },
+    uSharpen:   { value: CONFIG.sharpen },
+    uGrain:     { value: CONFIG.grain },
+    uVignette:  { value: CONFIG.vignette },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform vec2 uResolution; uniform float uTime;
+    uniform float uSharpen, uGrain, uVignette;
+    varying vec2 vUv;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    void main(){
+      vec2 uv = vUv;
+      vec2 px = 1.0 / uResolution;
+      vec3 col = texture2D(tDiffuse, uv).rgb;
+      vec3 nb = texture2D(tDiffuse, uv + vec2(px.x, 0.0)).rgb
+              + texture2D(tDiffuse, uv - vec2(px.x, 0.0)).rgb
+              + texture2D(tDiffuse, uv + vec2(0.0, px.y)).rgb
+              + texture2D(tDiffuse, uv - vec2(0.0, px.y)).rgb;
+      col += (col * 4.0 - nb) * 0.25 * uSharpen;
+      float grain = hash(gl_FragCoord.xy + fract(uTime) * vec2(53.0, 131.0)) - 0.5;
+      col += grain * uGrain;
+      vec2 q = vUv - 0.5;
+      col *= 1.0 - dot(q, q) * uVignette;
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+}
+const postPass = new ShaderPass(PostFX)
+postPass.renderToScreen = true
+composer.addPass(postPass)
+
+/* ---------- MOUSE PARALLAX + HOVER-TO-SHATTER ---------- */
+const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
+const ndc = new THREE.Vector2()
+window.addEventListener('pointermove', e => {
+  mouse.tx = (e.clientX / window.innerWidth - 0.5) * 2
+  mouse.ty = (e.clientY / window.innerHeight - 0.5) * 2
+  ndc.x = (e.clientX / window.innerWidth) * 2 - 1
+  ndc.y = -(e.clientY / window.innerHeight) * 2 + 1
+})
+// Raycast the INTACT stone (displacement is shader-side, so the geometry keeps its whole
+// silhouette) → hovering anywhere on the rock eases the burst in; leaving eases it back.
+const raycaster = new THREE.Raycaster()
+let shatter = 0
+
+/* ---------- CONFIG → live objects ---------- */
+function applyConfig() {
+  renderer.toneMappingExposure = CONFIG.exposure
+  scene.background = hexToColor(CONFIG.skyTop)
+  // sky dome (colours + clouds are live now — shader driven)
+  skyUniforms.uTop.value.copy(hexToVec3(CONFIG.skyTop))
+  skyUniforms.uMid.value.copy(hexToVec3(CONFIG.skyMid))
+  skyUniforms.uHorizon.value.copy(hexToVec3(CONFIG.skyHorizon))
+  skyUniforms.uCloudCol.value.copy(hexToVec3(CONFIG.cloudColor))
+  skyUniforms.uCloudAmt.value = CONFIG.cloudAmt
+  skyUniforms.uGlowCol.value.copy(hexToVec3(CONFIG.sunGlow))
+  skyUniforms.uGlowStr.value = CONFIG.sunStrength * 0.5
+  skyUniforms.uGlowSize.value = CONFIG.sunSize
+  // stone
+  stoneUniforms.uScale.value = CONFIG.crackScale
+  stoneUniforms.uWidth.value = CONFIG.crackWidth
+  stoneUniforms.uGlow.value = CONFIG.crackGlow
+  stoneUniforms.uBleed.value = CONFIG.crackBleed
+  stoneUniforms.uFine.value = CONFIG.crackFine
+  stoneUniforms.uPulse.value = CONFIG.crackPulse
+  stoneUniforms.uCore.value = CONFIG.coreBias
+  stoneUniforms.uRim.value = CONFIG.stoneRim
+  stoneUniforms.uSpread.value = CONFIG.shatter
+  stoneUniforms.uStone.value.copy(hexToVec3(CONFIG.stoneColor))
+  stoneUniforms.uCrack.value.copy(hexToVec3(CONFIG.crackColor))
+  stoneUniforms.uSun.value.copy(hexToVec3(CONFIG.sunColor))
+  stoneUniforms.uSky.value.copy(hexToVec3(CONFIG.skyLow))
+  stoneGroup.scale.setScalar(CONFIG.stoneScale)
+  stoneGroup.position.y = CONFIG.stonePosY
+  // crackScale / roughLumps change the seed layout & shell → re-cut the fracture (and refresh uSeeds)
+  if (CONFIG.crackScale !== builtScale || CONFIG.roughLumps !== builtLumps) {
+    stone.geometry.dispose()
+    stone.geometry = buildStone()
+    builtScale = CONFIG.crackScale; builtLumps = CONFIG.roughLumps
+  }
+  // water
+  waterUniforms.uWaveH.value = CONFIG.waveHeight
+  waterUniforms.uWaveScale.value = CONFIG.waveScale
+  waterUniforms.uWaveSpeed.value = CONFIG.waveSpeed
+  waterUniforms.uSpec.value = CONFIG.waterSpec
+  waterUniforms.uDetail.value = CONFIG.waterDetail
+  waterUniforms.uGlowAmt.value = CONFIG.waterGlow
+  waterUniforms.uFade.value = CONFIG.horizonFade
+  waterUniforms.uDeep.value.copy(hexToVec3(CONFIG.waterDeep))
+  waterUniforms.uSunCol.value.copy(hexToVec3(CONFIG.sunColor))
+  waterUniforms.uGlowCol.value.copy(hexToVec3(CONFIG.sunGlow))
+  waterUniforms.uTop.value.copy(hexToVec3(CONFIG.skyTop))
+  waterUniforms.uMid.value.copy(hexToVec3(CONFIG.skyMid))
+  waterUniforms.uHorizon.value.copy(hexToVec3(CONFIG.skyHorizon))
+  // post
+  bloomPass.strength = CONFIG.bloom
+  bloomPass.threshold = CONFIG.bloomThresh
+  postPass.uniforms.uSharpen.value = CONFIG.sharpen
+  postPass.uniforms.uGrain.value = CONFIG.grain
+  postPass.uniforms.uVignette.value = CONFIG.vignette
+}
+
+/* ---------- RESIZE ---------- */
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio, 2)
+  renderer.setPixelRatio(dpr); renderer.setSize(w, h, false)
+  camera.aspect = w / h; camera.updateProjectionMatrix()
+  composer.setPixelRatio(dpr); composer.setSize(w, h)
+  postPass.uniforms.uResolution.value.set(w * dpr, h * dpr)
+}
+window.addEventListener('resize', resize); resize()
+
+/* ---------- RENDER LOOP ---------- */
+const clock = new THREE.Clock()
+let elapsed = 0
+function render() {
+  requestAnimationFrame(render)
+  const dt = Math.min(clock.getDelta(), 0.05)
+  elapsed += dt
+
+  // eased mouse → light parallax (NO scene rotation)
+  mouse.x += (mouse.tx - mouse.x) * 0.045
+  mouse.y += (mouse.ty - mouse.y) * 0.045
+  const p = CONFIG.parallax
+  camera.position.x = CAM_HOME.x + mouse.x * p
+  camera.position.y = CAM_HOME.y - mouse.y * p * 0.5
+  camera.lookAt(0, CONFIG.stonePosY * 0.5, 0)
+
+  // stone: gentle vertical bob (floating) + faint cursor lean — no spin
+  stoneGroup.position.y = CONFIG.stonePosY + Math.sin(elapsed * CONFIG.bobSpeed) * CONFIG.bob
+  stoneGroup.rotation.y = mouse.x * CONFIG.tilt
+  stoneGroup.rotation.x = -mouse.y * CONFIG.tilt * 0.6
+
+  // hover → burst the shards apart (quick to fly out, slower to settle back)
+  raycaster.setFromCamera(ndc, camera)
+  const over = CONFIG.shatter > 0 && raycaster.intersectObject(stone, false).length > 0
+  shatter += ((over ? 1 : 0) - shatter) * (over ? 0.09 : 0.055)
+  stoneUniforms.uShatter.value = shatter
+
+  skyUniforms.uTime.value = elapsed
+  skyDome.position.copy(camera.position)   // keep the dome centred on the camera
+  stoneUniforms.uTime.value = elapsed
+  waterUniforms.uTime.value = elapsed
+  waterUniforms.uCam.value.copy(camera.position)
+  waterUniforms.uShardX.value = stoneGroup.position.x
+  postPass.uniforms.uTime.value = elapsed
+  composer.render()
+}
+render()
+
+/* ===== UI (remove this block to drop the panel) ===== */
+function setupColorUI(config, apply) {
+  const panel = document.getElementById('ui-panel')
+  const toggle = document.getElementById('ui-toggle')
+  const body = document.getElementById('ui-body')
+  if (!panel) return
+  toggle.addEventListener('click', () => panel.classList.toggle('-open'))
+  const _apply = apply
+  apply = () => { _apply(); saveConfig(); renderSnapshot(config) }
+  const numericRanges = {
+    cloudAmt: { min: 0, max: 1.2, step: 0.02 },
+    sunSize: { min: 4, max: 30, step: 0.5 }, sunStrength: { min: 0, max: 1.5, step: 0.02 },
+    crackScale: { min: 0.6, max: 6, step: 0.05 }, crackWidth: { min: 0.005, max: 0.2, step: 0.005 },
+    crackGlow: { min: 0, max: 8, step: 0.05 }, crackBleed: { min: 0, max: 2, step: 0.02 },
+    crackFine: { min: 0, max: 1, step: 0.02 },
+    crackPulse: { min: 0, max: 1, step: 0.02 }, coreBias: { min: 0, max: 1, step: 0.02 },
+    stoneRim: { min: 0, max: 2, step: 0.02 }, roughLumps: { min: 0, max: 0.7, step: 0.01 },
+    stoneScale: { min: 1, max: 4, step: 0.05 }, stonePosY: { min: -1, max: 4, step: 0.05 },
+    bob: { min: 0, max: 1, step: 0.01 }, bobSpeed: { min: 0, max: 2, step: 0.02 },
+    shatter: { min: 0, max: 1.5, step: 0.02 },
+    waterGlow: { min: 0, max: 2, step: 0.02 }, horizonFade: { min: 0.2, max: 2.5, step: 0.02 },
+    waveHeight: { min: 0, max: 1.5, step: 0.02 },
+    waveScale: { min: 0.02, max: 0.4, step: 0.005 }, waveSpeed: { min: 0, max: 2, step: 0.02 },
+    waterSpec: { min: 0, max: 3, step: 0.02 }, waterDetail: { min: 0, max: 2, step: 0.02 },
+    parallax: { min: 0, max: 4, step: 0.05 },
+    tilt: { min: 0, max: 0.4, step: 0.005 }, bloom: { min: 0, max: 3, step: 0.02 },
+    bloomThresh: { min: 0, max: 1, step: 0.02 }, exposure: { min: 0.4, max: 2, step: 0.02 },
+    sharpen: { min: 0, max: 2, step: 0.02 }, grain: { min: 0, max: 0.4, step: 0.01 },
+    vignette: { min: 0, max: 1.5, step: 0.02 },
+  }
+  for (const k of Object.keys(config)) {
+    const v = config[k]
+    const row = document.createElement('label')
+    row.appendChild(Object.assign(document.createElement('span'), { textContent: k }))
+    if (typeof v === 'string' && v[0] === '#') {
+      const inp = document.createElement('input'); inp.type = 'color'; inp.value = v
+      inp.addEventListener('input', e => { config[k] = e.target.value; apply() })
+      row.appendChild(inp)
+    } else if (typeof v === 'number') {
+      const r = numericRanges[k] || { min: 0, max: Math.max(1, v * 2), step: 0.01 }
+      const inp = document.createElement('input')
+      inp.type = 'range'; inp.min = String(r.min); inp.max = String(r.max); inp.step = String(r.step); inp.value = String(v)
+      inp.addEventListener('input', e => { config[k] = parseFloat(e.target.value); apply() })
+      row.appendChild(inp)
+    }
+    body.appendChild(row)
+  }
+  const btns = document.createElement('div'); btns.id = 'ui-buttons'
+  const reloadBtn = document.createElement('button'); reloadBtn.type = 'button'; reloadBtn.textContent = '⟳ reload'
+  const resetBtn = document.createElement('button'); resetBtn.type = 'button'; resetBtn.textContent = '↺ reset'
+  reloadBtn.title = 'Reload with saved settings'; resetBtn.title = 'Clear saved settings and reload defaults'
+  reloadBtn.addEventListener('click', () => location.reload())
+  resetBtn.addEventListener('click', () => { try { localStorage.removeItem(STORAGE_KEY) } catch (e) {} ; location.reload() })
+  btns.appendChild(reloadBtn); btns.appendChild(resetBtn); body.appendChild(btns)
+  panel.classList.add('-open')
+  renderSnapshot(config)
+}
+function renderSnapshot(config) {
+  const snap = document.getElementById('ui-snapshot'); if (!snap) return
+  const lines = ['const CONFIG = {']
+  for (const k of Object.keys(config)) {
+    const v = config[k]
+    let f
+    if (typeof v === 'string') f = "'" + v + "'"
+    else if (Number.isInteger(v)) f = String(v)
+    else f = String(parseFloat(v.toFixed(4)))
+    lines.push('  ' + k + ': ' + f + ',')
+  }
+  lines.push('}')
+  snap.textContent = lines.join('\n')
+}
+applyConfig()
+setupColorUI(CONFIG, applyConfig)
+/* ===== END UI ===== */
+</script>
+</body>
+</html>

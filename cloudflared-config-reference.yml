@@ -1,0 +1,243 @@
+# Cloudflare Tunnel — markdalton.com/ai, ai.markdalton.com, and the front page.
+# ai.markdalton.com was retired 2026-08-03 and restored 2026-08-07; see that note.
+#
+# STAGING COPY. The tunnel actually runs from /etc/cloudflared/config.yml as
+# root. This file is the editable one; it gets copied over that. The only
+# difference between the two is the credentials-file line, which points into
+# /etc here so a straight copy is correct — do not "fix" it back to $HOME.
+#
+# Locally managed on purpose. Two earlier attempts used a dashboard-created
+# tunnel, where the routing lives in Cloudflare and this machine cannot see or
+# change it. Both served 503 to everything because that remote routing was empty,
+# and there was nothing here to fix. Keeping the ingress in this file means the
+# thing that decides where traffic goes sits next to the thing serving it.
+#
+# ORDER MATTERS. cloudflared matches top-down. Within a hostname the endpoint
+# rule must come first, or /say and /listen would be answered with the HTML page.
+#
+# CLOUDFLARED DOES NOT REWRITE PATHS. /ai/say arrives at localhost:8898 as
+# "/ai/say", not "/say". Both origins strip the prefix themselves — see
+# MOUNT_PREFIXES in voice-line/client/webinput.py and voice-visualizer/server.py.
+# If either of those is reverted, the new address 404s while the old one keeps
+# working perfectly, which reads like a DNS fault and is not one.
+#
+# THE MOVE TO markdalton.com/ai completed 2026-08-03 the same way: run both
+# addresses at once, retire the old one only once Mark confirms he is reading
+# the new one. ai.markdalton.com was that retired address — restored 2026-08-07,
+# see the note further down, so BOTH addresses are live again on purpose. Keep
+# the overlap-then-retire shape for the next address change — the confirmation
+# is what makes it safe, not the ordering.
+#
+# noTLSVerify covers only the hop from cloudflared to localhost, which is the
+# self-signed certificate on this box. What the world sees is Cloudflare's own
+# certificate — and that is what makes the microphone work, since browsers refuse
+# mic access on anything but a secure origin.
+
+tunnel: 028b6add-0737-482f-84d0-babd519f9877
+credentials-file: /etc/cloudflared/028b6add-0737-482f-84d0-babd519f9877.json
+
+# Survive a flaky link rather than dropping the conversation.
+retries: 5
+grace-period: 30s
+
+ingress:
+  # --- the new address ------------------------------------------------------
+  # The voice line's own endpoint: typing, the microphone, and reply audio.
+  - hostname: markdalton.com
+    # NOTE how this list works: it is an allowlist of the endpoint's routes, and
+    # anything missing from it silently goes to the BOARD instead, which answers
+    # 501 for a POST it does not implement. That is exactly what happened when
+    # /upload shipped on 2026-08-03 — it worked perfectly on loopback and
+    # returned 501 through the hostname, which reads as a broken feature rather
+    # than a routing rule. Add the route here in the same change that adds it to
+    # webinput.py, never afterwards.
+    path: ^/ai/(health|say|listen|audio|upload|auth/.+)$
+    service: https://localhost:8898
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # Everything else under /ai is the board. Bare "/ai" with no trailing slash is
+  # matched deliberately: it is the address a person types, and the board
+  # normalises it rather than 404ing on a reasonable URL.
+  - hostname: markdalton.com
+    path: ^/ai(/.*)?$
+    service: https://localhost:8777
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # www, same two rules, so the address works with or without it.
+  - hostname: www.markdalton.com
+    # NOTE how this list works: it is an allowlist of the endpoint's routes, and
+    # anything missing from it silently goes to the BOARD instead, which answers
+    # 501 for a POST it does not implement. That is exactly what happened when
+    # /upload shipped on 2026-08-03 — it worked perfectly on loopback and
+    # returned 501 through the hostname, which reads as a broken feature rather
+    # than a routing rule. Add the route here in the same change that adds it to
+    # webinput.py, never afterwards.
+    path: ^/ai/(health|say|listen|audio|upload|auth/.+)$
+    service: https://localhost:8898
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  - hostname: www.markdalton.com
+    path: ^/ai(/.*)?$
+    service: https://localhost:8777
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # --- ai.markdalton.com, RESTORED 2026-08-07 --------------------------------
+  #
+  # Retired 2026-08-03, restored on Mark's instruction 2026-08-07: the board
+  # goes back on this hostname ALONGSIDE markdalton.com/ai, not instead of it —
+  # same overlap-then-retire shape as the 2026-08-03 move, and the same gate:
+  # this one only gets retired after Mark confirms with his own eyes he is
+  # reading the board at the address that replaces it. Until then both are live
+  # and NEITHER existing markdalton.com/www.markdalton.com rule above was
+  # touched to make this true.
+  #
+  # SCOPE, per Mark's own architecture statement 2026-08-07: "anything local
+  # goes to ai.markdalton.com, anything that is hosted on cloudflare goes to
+  # markdalton.com/". So this hostname carries everything this box itself
+  # serves that used to live under the apex — the board and its endpoints, the
+  # Think Tank room and its tracks, and the two form pages — while the apex
+  # stays exactly as it is until a later job moves the marketing pages to
+  # Cloudflare Pages. That later move is NOT this job.
+  #
+  # Bare paths, not /ai-prefixed: cloudflared does not rewrite paths, and
+  # unlike the apex's /ai mount, nothing here needs a prefix stripped — both
+  # webinput.py's and server.py's MOUNT_PREFIXES only special-case "/ai", so an
+  # unprefixed path here is already the path the origin expects. Verified by
+  # reading _demount() in both files before writing this, not assumed.
+  #
+  # ORDER, same rule as above: the two specific rules before the catch-all, or
+  # the board would swallow /room, /tracks.json, /track/N, /talk and /learn.
+  - hostname: ai.markdalton.com
+    path: ^/(health|say|listen|audio|upload|auth/.+)$
+    service: https://localhost:8898
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # The Think Tank room and its music, and the two form pages (GET the page,
+  # POST the form — same path serves both, cloudflared does not look at method).
+  # Both talk.html and learn.html link back to /agents and to anchors on the
+  # apex (/#approach, /#fit, /#team, /#why) that do not exist on this hostname —
+  # a real defect, flagged 2026-08-07, and explicitly front-end work, not fixed
+  # here.
+  # ASSETS AND FONTS ADDED 2026-08-07, AND THIS WAS A LIVE BREAK, NOT A TIDY-UP.
+  # Wren moved the site onto ONE shared stylesheet at /assets/site.css. On
+  # Cloudflare that worked instantly, because Pages serves any uploaded file as a
+  # static asset with no routing. On THIS box nothing is implicit: every path is
+  # an explicit branch in server.py AND an explicit rule here. It was missing
+  # from both, so talk and learn went live asking for a stylesheet that returned
+  # the BOARD's gated 404 — two of Mark's pages rendering unstyled while every
+  # file involved existed on disk and looked fine.
+  # THE LESSON WORTH KEEPING: "the file is on disk" and "Cloudflare serves it"
+  # both prove nothing about this hostname. Fetch it over HTTPS from
+  # ai.markdalton.com or you have not checked.
+  - hostname: ai.markdalton.com
+    path: ^/(room/?|tracks\.json|track/\d+|talk|learn|assets/.+|fonts/.+)$
+    service: http://localhost:8779
+    originRequest:
+      connectTimeout: 30s
+
+  # Everything else on this hostname is the board, at the root — matching what
+  # ai.markdalton.com served from 2026-08-02 to 2026-08-03, and what Mark asked
+  # for again on 2026-08-07: the board reachable at https://ai.markdalton.com/
+  # with no /ai in the path.
+  - hostname: ai.markdalton.com
+    service: https://localhost:8777
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # --- hermes.markdalton.com, ADDED 2026-08-07 --------------------------------
+  #
+  # Mark: "Setup Hermes.markdalton.com, put it behind a login." He chose the
+  # gated option after being shown the trade-off: an AI endpoint on an open
+  # address is free compute for anyone who finds it, on his card, his power and
+  # his heat — and heat is the one guardrail he set on local work.
+  #
+  # SAME ORIGIN AS THE BOARD, deliberately. Hermes is two routes on the board
+  # process (/hermes and /hermes/send), not a separate service — so there is no
+  # new port, no new unit, and nothing new to keep alive. Tessa built it behind
+  # the EXISTING email-login gate rather than a second one, because two auth
+  # systems means one of them rots and the rotten one is the way in.
+  #
+  # THE GATE WAS PROVEN BEFORE THIS RULE WAS WRITTEN, which is the house order
+  # and not a formality. Verified 2026-08-07 against the running process: a
+  # stranger asking for /hermes gets a 404 byte-identical to a name that never
+  # existed — same 9 bytes, same md5 — and a FORGED CF-Connecting-IP: 127.0.0.1
+  # is refused, which is the tunnelled-loopback scar closed.
+  #
+  # THE PAGE IS AT /hermes, NOT AT THE ROOT. cloudflared does not rewrite paths,
+  # so hermes.markdalton.com/ lands on the BOARD, not on Hermes. Making the root
+  # serve Hermes needs a host-aware route in server.py — Tessa's, and she asked
+  # to see any rewrite before it ships. Until then the address is
+  # https://hermes.markdalton.com/hermes and that is stated rather than hidden.
+  - hostname: hermes.markdalton.com
+    service: https://localhost:8777
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # --- DNS for ai.markdalton.com IS LIVE, 2026-08-07 -------------------------
+  #
+  # SUPERSEDED. This block used to read "NOT YET CREATED" and that is now false:
+  # Mark created the record by hand, and this config was copied to
+  # /etc/cloudflared/config.yml and cloudflared restarted at 00:29:56 on
+  # 2026-08-07. Verified after, not assumed: ai.markdalton.com resolves to
+  # Cloudflare proxy IPs, / answers 303 to /login, and /login answers 200.
+  #
+  # ONE TRAP WAS FOUND AND FIXED GETTING HERE, worth keeping: the zone carried a
+  # canonical-host redirect rule, (http.host ne "markdalton.com") or (not ssl),
+  # which caught this subdomain and 301'd the whole thing to the apex. The board
+  # could never have answered here, and it would have read as a tunnel fault
+  # rather than a redirect rule. The rule was patched to exclude
+  # ai.markdalton.com on both tests. If this hostname ever bounces to the apex
+  # again, look at the zone's redirect rules BEFORE looking at this file.
+  #
+  # The credential this box holds
+  # (~/.config/cloudflare/markdalton-cf.cred, systemd-creds name cf-main) was
+  # tested 2026-08-07 and returns HTTP 403 "Authentication error" on BOTH
+  # reading and writing DNS records on this zone, despite being a valid, active
+  # token (confirmed live against /user/tokens/verify). An earlier note on this
+  # file once claimed ~/.cloudflared/cert.pem's apiToken carries dns_records:edit
+  # on this zone — that claim was removed along with the section it lived in,
+  # untested either way here, so do not revive it without checking. The record
+  # needs creating by hand or with a token that actually carries the DNS Edit
+  # permission group on this zone.
+
+  # --- the front page, 2026-08-03 -------------------------------------------
+  #
+  # Everything left on the domain that is not /ai. This is a separate service on
+  # :8779 rather than another route into the board: the board is the voice line's
+  # face and restarts whenever that system changes, and the front of the domain
+  # has no business going down with it.
+  #
+  # BELOW the /ai rules and ABOVE the 404, and both halves of that matter.
+  # cloudflared matches top-down: put this above /ai and it swallows the whole
+  # system; leave it out and the root falls through to the 404 it served before.
+  #
+  # Plain http, no noTLSVerify needed — that service speaks http on loopback
+  # deliberately, so there is no self-signed certificate here to wave through.
+  - hostname: markdalton.com
+    service: http://localhost:8779
+    originRequest:
+      connectTimeout: 30s
+
+  - hostname: www.markdalton.com
+    service: http://localhost:8779
+    originRequest:
+      connectTimeout: 30s
+
+  # Required last rule: anything not matched above. NOTE this now also catches
+  # markdalton.com itself — the root of the domain answers 404 rather than the
+  # 530 it served before, because the apex points at this tunnel now. That is a
+  # real change to the apex and it is deliberate: nothing else is hosted there
+  # today. A real site at the root goes in ABOVE this line.
+  - service: http_status:404
